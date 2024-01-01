@@ -33,6 +33,9 @@ function convertCsvToHtml(csvFilePath) {
 
                 // Generate table rows
                 rows.forEach(function(row) {
+                    if(row.length < 2) {
+                        return;
+                    }
                     html += '<tr>';
                     Object.values(row).forEach(function(value) {
                         // Link OSM relations

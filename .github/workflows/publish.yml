@@ -23,8 +23,11 @@ jobs:
     - name: Run script
       run: node ./us-wikidata_qa.js
 
-    - name: Deploy to GitHub Pages
-      uses: JamesIves/github-pages-deploy-action@4.1.4
+    - name: Upload 🏗
+      uses: actions/upload-pages-artifact@v1
       with:
-        branch: gh-pages
-        folder: output
+        path: ./output
+
+    - name: Deploy 🚀
+      id: deployment
+      uses: actions/deploy-pages@v1

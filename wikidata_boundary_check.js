@@ -20,14 +20,12 @@ if (!outputCSV) {
 const outputIssuesCSV = outputCSV.replace('.csv', '_flagged.csv');
 const outputP402CSV = outputCSV.replace('.csv', '_P402_entry.csv');
 
-const csvWriter = createObjectCsvWriter({
-    path: outputCSV,
-    header: [
+csvHeader = [
         { id: '@id', title: '@id' },
-        { id: 'wikidata', title: 'wikidata' },
         { id: 'boundary', title: 'boundary' },
         { id: 'admin_level', title: 'admin_level' },
         { id: 'name', title: 'name' },
+        { id: 'wikidata', title: 'wikidata' },
         { id: 'wikidata_name', title: 'wikidata_name' },
         { id: 'P31', title: 'P31' },
         { id: 'P31_name', title: 'instance of' },
@@ -36,26 +34,16 @@ const csvWriter = createObjectCsvWriter({
         { id: 'P402', title: 'P402' },
         { id: 'P402_reverse', title: 'P402_reverse' },
         { id: 'flags', title: 'flags' }
-    ]
+    ];
+
+const csvWriter = createObjectCsvWriter({
+    path: outputCSV,
+    header: csvHeader
 });
 
 const csvIssuesWriter = createObjectCsvWriter({
     path: outputIssuesCSV,
-    header: [
-        { id: '@id', title: '@id' },
-        { id: 'wikidata', title: 'wikidata' },
-        { id: 'boundary', title: 'boundary' },
-        { id: 'admin_level', title: 'admin_level' },
-        { id: 'name', title: 'name' },
-        { id: 'wikidata_name', title: 'wikidata_name' },
-        { id: 'P31', title: 'P31' },
-        { id: 'P31_name', title: 'P31_name' },
-        { id: 'P131', title: 'P131' },
-        { id: 'P131_name', title: 'P131_name' },
-        { id: 'P402', title: 'P402' },
-        { id: 'P402_reverse', title: 'P402_reverse' },
-        { id: 'flags', title: 'flags' }
-    ]
+    header: csvHeader
 });
 
 const P402Writer = createObjectCsvWriter({
@@ -149,7 +137,10 @@ const fetchData = async (qid) => {
         const P31 = claims.P31?.[0]?.mainsnak?.datavalue?.value?.id || '';
         const P31_name = await getNameFromWikidata(P31);
         const P131 = claims.P131?.[0]?.mainsnak?.datavalue?.value?.id || '';
-        const P402 = claims.P402?.[0]?.mainsnak?.datavalue?.value || '';
+        let P402 = claims.P402?.[0]?.mainsnak?.datavalue?.value || '';
+        if(!isNullOrEmpty(P402)) {
+            P402 = `r${P402}`;
+        }
         const P402_count = claims.P402?.length;
         const P131_name = await getNameFromWikidata(P131);
         const wikidata_name = await getNameFromWikidata(qid);
@@ -199,6 +190,8 @@ const processCSV = async () => {
                     processedRow = { ...row, P131: '', P131_name: '', wikidata_name: '', P402: '', P31: '', P31_name: '' };
                 }
 
+                processedRow['@id'] = `r${processedRow['@id']}`; 
+
                 if(isNullOrEmpty(processedRow.wikidata)) {
                     flags.push("Missing wikidata");
                     if(!isNullOrEmpty(processedRow.P402_reverse)) {
@@ -227,10 +220,10 @@ const processCSV = async () => {
                         }
                     }
                     if(processedRow.P31 === "Q498162" && processedRow.boundary == "administrative") { //CDP
-                        flags.push("Wikidata CDP / OSM admin boundary");                    
+                        flags.push("Wikidata says CDP, OSM says admin boundary");                    
                     }
                     if(processedRow.P31 !== "Q498162" && processedRow.boundary == "census") { //CDP
-                        flags.push("OSM CDP / missing wikidata CDP");
+                        flags.push("OSM says CDP but wikidata is missing CDP statement");
                     }
                     if(!isNullOrEmpty(processedRow.admin_level) && processedRow.boundary == "census") { //CDP
                         flags.push("Census boundary should not have admin_level");
@@ -245,7 +238,6 @@ const processCSV = async () => {
                 }
 
                 processedRow.flags = flags.join(";");
-                processedRow['@id'] = `r${processedRow['@id']}`; 
 
                 processedData.push(processedRow);
                 if(flags.length > 0) {
