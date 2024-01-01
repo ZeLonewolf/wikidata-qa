@@ -32,7 +32,7 @@ async function checkWikipediaMatch(wikidataId, rawWikipediaTitle) {
     const data = await fetchWikidata(wikidataId);
     if (!data) return;
 
-    const siteLinks = data.entities[wikidataId].sitelinks;
+    const siteLinks = data.entities[wikidataId]?.sitelinks;
     if (siteLinks && siteLinks[`${wikipediaLang}wiki`]) {
         const wikidataWikipediaTitle = siteLinks[`${wikipediaLang}wiki`].title.replace(' ', '_');
         if (wikidataWikipediaTitle.toLowerCase() === wikipediaTitle.toLowerCase().replace(" ", "_")) {
