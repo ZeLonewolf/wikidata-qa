@@ -6,7 +6,7 @@ const path = require('path');
 async function runOverpassQuery(osmRelationID) {
     const overpassUrl = 'http://overpass-api.de/api/interpreter';
     const relationid = Number(osmRelationID) + 3600000000;
-    const query = `[timeout:180][out:csv(::id,wikidata,wikipedia,admin_level,boundary,name;true;',')];
+    const query = `[timeout:180][out:csv(::id,wikidata,wikipedia,admin_level,boundary,name,"name:en";true;',')];
         area(id:${relationid})->.a;
         (
           rel[boundary=administrative][admin_level~"^7|8|9$"](area.a);

@@ -186,6 +186,12 @@ const processCSV = async () => {
 
             for (const row of results) {
 
+                if(!isNullOrEmpty(row['name:en'])) {
+                    //Let English name override main name tag
+                    row['name'] = row['name:en'];
+                    delete row['name:en'];
+                }
+
                 const P402_reverse_array = await queryWikidataForOSMID(row['@id']);
                 const qids = P402_reverse_array.map(itemUrl => itemUrl.substring(itemUrl.lastIndexOf('/') + 1));
                 row['P402_reverse'] = qids.join(', ');
