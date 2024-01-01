@@ -41,14 +41,6 @@ function saveToFile(osmRelationID, data) {
 
 function main() {
 
-    const folderPath = path.join(__dirname, 'output'); // Replace 'yourFolderName' with the desired folder name
-
-    fs.mkdir(folderPath, { recursive: true }, (error) => {
-        if (error) {
-            console.error('Error creating folder:', error);
-        }
-    });
-
     const osmRelationID = process.argv[2];
     if (!osmRelationID) {
         console.log('Please provide a location name.');

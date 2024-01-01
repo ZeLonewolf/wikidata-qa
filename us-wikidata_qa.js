@@ -62,6 +62,12 @@ async function qaState(osmID, stateName) {
   });
 }
 
+const outputFolderPath = path.join(__dirname, 'output');
 
+fs.mkdir(outputFolderPath, { recursive: true }, (error) => {
+    if (error) {
+        console.error('Error creating folder:', error);
+    }
+});
 
 processStates();
