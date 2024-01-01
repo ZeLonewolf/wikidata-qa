@@ -11,7 +11,7 @@ function convertCsvToHtml(csvFilePath) {
     const htmlFilePath = csvFilePath.replace('.csv', '.html');
 
     // Read CSV file
-    fs.readFile(csvFilePath, 'utf8', function(err, data) {
+    fs.readFileSync(csvFilePath, 'utf8', function(err, data) {
         if (err) {
             console.error("Could not read file: ", err);
             return;
@@ -55,7 +55,7 @@ function convertCsvToHtml(csvFilePath) {
                 html += '</table></body></html>';
 
                 // Write HTML file
-                fs.writeFile(htmlFilePath, html, function(writeErr) {
+                fs.writeFileSync(htmlFilePath, html, function(writeErr) {
                     if (writeErr) {
                         console.error("Could not write file: ", writeErr);
                     } else {

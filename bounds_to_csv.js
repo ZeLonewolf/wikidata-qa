@@ -30,7 +30,7 @@ async function runOverpassQuery(osmRelationID) {
 // Function to save data to a CSV file
 function saveToFile(osmRelationID, data) {
     const fileName = `output/${osmRelationID}.csv`;
-    fs.writeFile(fileName, data, (err) => {
+    fs.writeFileSync(fileName, data, (err) => {
         if (err) {
             console.error('Error writing to file:', err);
         } else {
