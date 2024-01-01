@@ -192,7 +192,7 @@ const processCSV = async () => {
                 if (row.wikidata) { // Make sure this matches your CSV column name
                     const { P131, P131_name, wikidata_name, P402, P402_count, P31, P31_name } = await fetchData(row.wikidata);
                     if(P402_count > 1) {
-                        flags.push("Wikidata item points to OSM relations");
+                        flags.push(`Wikidata item points to ${P402_count} different OSM relations`);
                     }
                     processedRow = { ...row, P131, P131_name, wikidata_name, P402, P31, P31_name };
                 } else {
