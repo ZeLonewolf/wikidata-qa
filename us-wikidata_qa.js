@@ -1,4 +1,5 @@
 const { fetchUSStates } = require('./us-states_to_json.js');
+const { generateHTML } = require('./generate_index.js');
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
@@ -6,6 +7,7 @@ const path = require('path');
 async function processStates() {
   try {
     const states = await fetchUSStates();
+    generateHTML(states.map(item => item.name).sort());
     for (const state of states) {
       await processState(state);
     }
@@ -24,10 +26,6 @@ async function downloadState(osmID) {
   return new Promise((resolve, reject) => {
     const args = [osmID];
     const callee = spawn('node', ['./bounds_to_csv.js', ...args]);
-
-    // callee.stdout.on('data', (data) => {
-    //   console.log(`stdout: ${data}`);
-    // });
 
     callee.stderr.on('data', (data) => {
       console.error(`stderr: ${data}`);

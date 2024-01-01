@@ -34,6 +34,4 @@ async function fetchUSStates() {
   }
 }
 
-// fetchUSStates().then(states => console.log(states)).catch(err => console.error(err));
-
 module.exports = { fetchUSStates };
