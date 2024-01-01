@@ -17,6 +17,7 @@ if (!outputCSV) {
     process.exit(1);
 }
 
+const CDP_QID = "Q498162";
 const outputIssuesCSV = outputCSV.replace('.csv', '_flagged.csv');
 const outputP402CSV = outputCSV.replace('.csv', '_P402_entry.csv');
 
@@ -134,8 +135,19 @@ const fetchData = async (qid) => {
     try {
         const response = await axios.get(`https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${qid}&props=claims&format=json`);
         const claims = response.data.entities[qid].claims;
-        const P31 = claims.P31?.[0]?.mainsnak?.datavalue?.value?.id || '';
-        const P31_name = await getNameFromWikidata(P31);
+        const P31Claims = claims.P31 || [];
+        const P31Values = [];
+        for (const claim of P31Claims) {
+            const claimValue = claim.mainsnak.datavalue.value.id;
+            if (claimValue) {
+                P31Values.push(claimValue);
+            }
+        }
+        const P31 = P31Values.join('; ');
+
+        // Fetch names for each P31 value
+        const P31Names = await Promise.all(P31Values.map(getNameFromWikidata));
+        const P31_name = P31Names.join('; ');
         const P131 = claims.P131?.[0]?.mainsnak?.datavalue?.value?.id || '';
         let P402 = claims.P402?.[0]?.mainsnak?.datavalue?.value || '';
         if(!isNullOrEmpty(P402)) {
@@ -219,10 +231,10 @@ const processCSV = async () => {
                             flags.push("Mismatched P402 link");                    
                         }
                     }
-                    if(processedRow.P31 === "Q498162" && processedRow.boundary == "administrative") { //CDP
+                    if(processedRow.P31.includes(CDP_QID) && processedRow.boundary == "administrative") { //CDP
                         flags.push("Wikidata says CDP, OSM says admin boundary");                    
                     }
-                    if(processedRow.P31 !== "Q498162" && processedRow.boundary == "census") { //CDP
+                    if(!processedRow.P31.includes(CDP_QID) && processedRow.boundary == "census") { //CDP
                         flags.push("OSM says CDP but wikidata is missing CDP statement");
                     }
                     if(!isNullOrEmpty(processedRow.admin_level) && processedRow.boundary == "census") { //CDP
