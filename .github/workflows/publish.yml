@@ -10,10 +10,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
     - name: Set up Node.js 18.x
-      uses: actions/setup-node@v2
+      uses: actions/setup-node@v4
       with:
         node-version: '18.x'
 
@@ -24,10 +24,10 @@ jobs:
       run: node ./us-wikidata_qa.js
 
     - name: Upload 🏗
-      uses: actions/upload-pages-artifact@v1
+      uses: actions/upload-pages-artifact@v2
       with:
         path: ./output
 
     - name: Deploy 🚀
       id: deployment
-      uses: actions/deploy-pages@v1
+      uses: actions/deploy-pages@v4
