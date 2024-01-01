@@ -1,5 +1,6 @@
 const { fetchUSStates } = require('./us-states_to_json.js');
 const { generateHTML } = require('./generate_index.js');
+const { convertCsvToHtml } = require("./csv_to_table.js");
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
@@ -7,7 +8,8 @@ const path = require('path');
 async function processStates() {
   try {
     const states = await fetchUSStates();
-    generateHTML(states.map(item => item.name).sort());
+    states.sort((a, b) => a.name.localeCompare(b.name));
+    generateHTML(states.map(item => item.name));
     for (const state of states) {
       await processState(state);
     }
@@ -20,6 +22,8 @@ async function processState(state) {
     console.log(`State: ${state.name}, OSM Relation ID: ${state.osmRelationId}`);
     await downloadState(state.osmRelationId);
     await qaState(state.osmRelationId, state.name);
+    convertCsvToHtml(`output/${state.name.replace(/\s/g, '_')}.csv`);
+    convertCsvToHtml(`output/${state.name.replace(/\s/g, '_')}_flagged.csv`);
 }
 
 async function downloadState(osmID) {

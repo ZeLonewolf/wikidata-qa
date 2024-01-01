@@ -20,9 +20,12 @@ function generateHTML(states) {
     let stateFileName = state.replace(/ /g, '_');
     htmlContent += `
       <li>
-        ${state} 
-        (<a href="${stateFileName}_flagged.csv">flagged issues</a>, 
-        <a href="${stateFileName}.csv">all boundaries</a>)
+        ${state} flagged issues
+        (<a href="${stateFileName}_flagged.csv">CSV</a>, 
+        <a href="${stateFileName}_flagged.html">HTML</a>) 
+        all boundaries
+        (<a href="${stateFileName}.csv">CSV</a>, 
+        <a href="${stateFileName}.html">HTML</a>) 
       </li>
     `;
   });

@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '0 0 * * 1,3,5'
-    
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -18,7 +18,7 @@ jobs:
         node-version: '18.x'
 
     - name: Install dependencies
-      run: npm install axios qs csv-parser csv-writer
+      run: npm install axios qs csv-parser csv-writer papaparse
 
     - name: Run script
       run: node ./us-wikidata_qa.js

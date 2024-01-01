@@ -85,7 +85,7 @@ const getNameFromWikidata = async (qid) => {
         return label;
     } catch (error) {
         console.error(`Error fetching data for QID ${qid}:`, error);
-        return null;
+        return "Invalid QID";
     }
 };
 
@@ -245,6 +245,7 @@ const processCSV = async () => {
                 }
 
                 processedRow.flags = flags.join(";");
+                processedRow['@id'] = `r${processedRow['@id']}`; 
 
                 processedData.push(processedRow);
                 if(flags.length > 0) {
