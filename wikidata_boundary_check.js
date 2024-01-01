@@ -17,7 +17,9 @@ if (!outputCSV) {
     process.exit(1);
 }
 
-const CDP_QID = "Q498162";
+//QIDs that correspond to a boundary=census
+const CDP_QID = ["Q498162", "Q56064719"];
+
 const outputIssuesCSV = outputCSV.replace('.csv', '_flagged.csv');
 const outputP402CSV = outputCSV.replace('.csv', '_P402_entry.csv');
 
@@ -231,10 +233,10 @@ const processCSV = async () => {
                             flags.push("Mismatched P402 link");                    
                         }
                     }
-                    if(processedRow.P31.includes(CDP_QID) && processedRow.boundary == "administrative") { //CDP
-                        flags.push("Wikidata says CDP, OSM says admin boundary");                    
+                    if (CDP_QID.some(qid => processedRow.P31.includes(qid)) && processedRow.boundary == "administrative") {
+                        flags.push("Wikidata says CDP, OSM says admin boundary");
                     }
-                    if(!processedRow.P31.includes(CDP_QID) && processedRow.boundary == "census") { //CDP
+                    if (!CDP_QID.some(qid => processedRow.P31.includes(qid)) && processedRow.boundary == "census") {
                         flags.push("OSM says CDP but wikidata is missing CDP statement");
                     }
                     if(!isNullOrEmpty(processedRow.admin_level) && processedRow.boundary == "census") { //CDP
