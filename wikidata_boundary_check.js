@@ -2,6 +2,7 @@ const fs = require('fs');
 const axios = require('axios');
 const csv = require('csv-parser');
 const { createObjectCsvWriter } = require('csv-writer');
+const { checkWikipediaMatch } = require('./wikipedia_match.js');
 
 const inputCSV = process.argv[2];
 const outputCSV = process.argv[3];
@@ -29,9 +30,9 @@ const csvWriter = createObjectCsvWriter({
         { id: 'name', title: 'name' },
         { id: 'wikidata_name', title: 'wikidata_name' },
         { id: 'P31', title: 'P31' },
-        { id: 'P31_name', title: 'P31_name' },
+        { id: 'P31_name', title: 'instance of' },
         { id: 'P131', title: 'P131' },
-        { id: 'P131_name', title: 'P131_name' },
+        { id: 'P131_name', title: 'contained in admin entity' },
         { id: 'P402', title: 'P402' },
         { id: 'P402_reverse', title: 'P402_reverse' },
         { id: 'flags', title: 'flags' }
@@ -149,12 +150,13 @@ const fetchData = async (qid) => {
         const P31_name = await getNameFromWikidata(P31);
         const P131 = claims.P131?.[0]?.mainsnak?.datavalue?.value?.id || '';
         const P402 = claims.P402?.[0]?.mainsnak?.datavalue?.value || '';
+        const P402_count = claims.P402?.length;
         const P131_name = await getNameFromWikidata(P131);
         const wikidata_name = await getNameFromWikidata(qid);
-        return { P131, P131_name, wikidata_name, P402, P31, P31_name };
+        return { P131, P131_name, wikidata_name, P402, P402_count, P31, P31_name };
     } catch (error) {
         console.error(`Error fetching data for QID ${qid}:`, error);
-        return { P131: '', P131_name: '', wikidata_name: '', P402: '', P31: '', P31_name: '' };
+        return { P131: '', P131_name: '', wikidata_name: '', P402: '', P402_count: '', P31: '', P31_name: '' };
     }
 };
 
@@ -168,7 +170,6 @@ const processCSV = async () => {
     fs.createReadStream(inputCSV)
         .pipe(csv())
         .on('data', (data) => {
-            // console.log('Read row:', data); // Debugging line
             results.push(data);
         })
         .on('end', async () => {
@@ -176,8 +177,9 @@ const processCSV = async () => {
             const flaggedData = [];
             const quickStatementsP402 = [];
 
+            let rowCount = 0;
+
             for (const row of results) {
-                // console.log('Processing row:', row); // Debugging line
 
                 const P402_reverse_array = await queryWikidataForOSMID(row['@id']);
                 const qids = P402_reverse_array.map(itemUrl => itemUrl.substring(itemUrl.lastIndexOf('/') + 1));
@@ -185,14 +187,17 @@ const processCSV = async () => {
 
                 let processedRow;
 
+                const flags = [];
+
                 if (row.wikidata) { // Make sure this matches your CSV column name
-                    const { P131, P131_name, wikidata_name, P402, P31, P31_name } = await fetchData(row.wikidata);
+                    const { P131, P131_name, wikidata_name, P402, P402_count, P31, P31_name } = await fetchData(row.wikidata);
+                    if(P402_count > 1) {
+                        flags.push("Wikidata item points to OSM relations");
+                    }
                     processedRow = { ...row, P131, P131_name, wikidata_name, P402, P31, P31_name };
                 } else {
                     processedRow = { ...row, P131: '', P131_name: '', wikidata_name: '', P402: '', P31: '', P31_name: '' };
                 }
-
-                const flags = [];
 
                 if(isNullOrEmpty(processedRow.wikidata)) {
                     flags.push("Missing wikidata");
@@ -227,14 +232,28 @@ const processCSV = async () => {
                     if(processedRow.P31 !== "Q498162" && processedRow.boundary == "census") { //CDP
                         flags.push("OSM CDP / missing wikidata CDP");
                     }
+                    if(!isNullOrEmpty(processedRow.admin_level) && processedRow.boundary == "census") { //CDP
+                        flags.push("Census boundary should not have admin_level");
+                    }
+                    if(processedRow.wikipedia) {
+                        wpFlag = await checkWikipediaMatch(processedRow.wikidata, processedRow.wikipedia);
+                        if(wpFlag) {
+                            flags.push(wpFlag);
+                        }
+                    }
+                    
                 }
 
                 processedRow.flags = flags.join(";");
 
-                console.log(processedRow);
                 processedData.push(processedRow);
                 if(flags.length > 0) {
                     flaggedData.push(processedRow);
+                }
+
+                ++rowCount;
+                if(rowCount % 100 == 0) {
+                    console.log(`Processed: ${rowCount} / ${results.length}`);
                 }
             }
 

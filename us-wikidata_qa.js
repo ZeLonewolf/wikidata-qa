@@ -25,16 +25,16 @@ async function downloadState(osmID) {
     const args = [osmID];
     const callee = spawn('node', ['./bounds_to_csv.js', ...args]);
 
-    callee.stdout.on('data', (data) => {
-      console.log(`stdout: ${data}`);
-    });
+    // callee.stdout.on('data', (data) => {
+    //   console.log(`stdout: ${data}`);
+    // });
 
     callee.stderr.on('data', (data) => {
       console.error(`stderr: ${data}`);
     });
 
     callee.on('close', (code) => {
-      console.log(`child process exited with code ${code}`);
+      console.log(`Downloaded CSV from overpass (code ${code})`);
       if (code === 0) {
         resolve();
       } else {
@@ -58,9 +58,9 @@ async function qaState(osmID, stateName) {
     });
 
     callee.on('close', (code) => {
-      console.log(`child process exited with code ${code}`);
       if (code === 0) {
         resolve();
+        console.log(`${stateName} Boundary analysis complete!`);
       } else {
         reject(new Error(`child process exited with code ${code}`));
       }
