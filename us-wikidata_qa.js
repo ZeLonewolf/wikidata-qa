@@ -49,10 +49,6 @@ async function qaState(osmID, stateName) {
     const args = [`output/${osmID}.csv`, `output/${stateName.replace(/\s/g, '_')}.csv`];
     const callee = spawn('node', ['./wikidata_boundary_check.js', ...args]);
 
-    callee.stdout.on('data', (data) => {
-      console.log(`stdout: ${data}`);
-    });
-
     callee.stderr.on('data', (data) => {
       console.error(`stderr: ${data}`);
     });
