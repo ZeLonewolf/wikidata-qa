@@ -51,6 +51,10 @@ async function qaState(osmID, stateName) {
       console.error(`stderr: ${data}`);
     });
 
+    callee.stdout.on('data', (data) => {
+      console.log(`stdout: ${data}`);
+    });
+
     callee.on('close', (code) => {
       if (code === 0) {
         resolve();
@@ -70,4 +74,4 @@ fs.mkdir(outputFolderPath, { recursive: true }, (error) => {
     }
 });
 
-processStates();
+processStates();17/40.753326/-73.982224
