@@ -17,8 +17,8 @@ if (!outputCSV) {
     process.exit(1);
 }
 
-//QIDs that correspond to a boundary=census
-const CDP_QID = ["Q498162", "Q56064719"];
+//QIDs that correspond to a non-admin boundary (CDP, unincorporated)
+const CDP_QID = ["Q498162", "Q56064719", "Q17343829"];
 
 const outputIssuesCSV = outputCSV.replace('.csv', '_flagged.csv');
 const outputP402CSV = outputCSV.replace('.csv', '_P402_entry.csv');
@@ -186,7 +186,7 @@ const processCSV = async () => {
 
             for (const row of results) {
 
-                if(!isNullOrEmpty(row['name:en'])) {
+                if(!isNullOrEmptyd(row['name:en'])) {
                     //Let English name override main name tag
                     row['name'] = row['name:en'];
                     delete row['name:en'];
@@ -240,7 +240,7 @@ const processCSV = async () => {
                         }
                     }
                     if (CDP_QID.some(qid => processedRow.P31.includes(qid)) && processedRow.boundary == "administrative") {
-                        flags.push("Wikidata says CDP, OSM says admin boundary");
+                        flags.push("Wikidata says CDP/unincorporated, OSM says admin boundary");
                     }
                     if (!CDP_QID.some(qid => processedRow.P31.includes(qid)) && processedRow.boundary == "census") {
                         flags.push("OSM says CDP but wikidata is missing CDP statement");
