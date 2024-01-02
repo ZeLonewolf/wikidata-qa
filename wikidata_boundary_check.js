@@ -186,7 +186,7 @@ const processCSV = async () => {
 
             for (const row of results) {
 
-                if(!isNullOrEmptyd(row['name:en'])) {
+                if(!isNullOrEmpty(row['name:en'])) {
                     //Let English name override main name tag
                     row['name'] = row['name:en'];
                     delete row['name:en'];
