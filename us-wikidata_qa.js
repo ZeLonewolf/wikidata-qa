@@ -13,7 +13,7 @@ async function processStates() {
     generateHTML(states.map(item => item.name));
     for (const state of states) {
       // Hack
-      if(state.name === "Rhode Island")
+      if(state.name === "Rhode Island" || state.name === "Massachusetts")
       await processState(state);
     }
   } catch (error) {
