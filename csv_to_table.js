@@ -2,7 +2,7 @@ const fs = require('fs');
 const Papa = require('papaparse');
 const path = require('path');
 
-function convertCsvToHtml(csvFilePath) {
+async function convertCsvToHtml(csvFilePath) {
     if (path.extname(csvFilePath) !== '.csv') {
         console.error("The file must have a .csv extension.");
         return;
