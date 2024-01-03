@@ -267,7 +267,7 @@ const boundaryCheck = async(inputCSV, outputCSV) => {
                     }
 
                     ++rowCount;
-                    if(rowCount % 10 == 0) {
+                    if(rowCount % 100 == 0) {
                         console.log(`Processed: ${rowCount} / ${results.length}`);
                     }
                 }
