@@ -26,8 +26,8 @@ async function processState(state) {
     await downloadState(state.osmRelationId);
     await boundaryCheck(`output/${state.osmRelationId}.csv`, `output/${state.name.replace(/\s/g, '_')}.csv`);
     console.log(`Boundary check complete for ${state.name}, OSM Relation ID: ${state.osmRelationId}`);
-    convertCsvToHtml(`output/${state.name.replace(/\s/g, '_')}.csv`);
-    convertCsvToHtml(`output/${state.name.replace(/\s/g, '_')}_flagged.csv`);
+    await convertCsvToHtml(`output/${state.name.replace(/\s/g, '_')}.csv`);
+    await convertCsvToHtml(`output/${state.name.replace(/\s/g, '_')}_flagged.csv`);
 }
 
 async function downloadState(osmID) {
