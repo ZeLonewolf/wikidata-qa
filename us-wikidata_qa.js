@@ -1,6 +1,7 @@
 const { fetchUSStates } = require('./us-states_to_json.js');
 const { generateHTML } = require('./generate_index.js');
 const { convertCsvToHtml } = require("./csv_to_table.js");
+const { boundaryCheck } = require("./wikidata_boundary_check.js");
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
@@ -21,7 +22,8 @@ async function processStates() {
 async function processState(state) {
     console.log(`State: ${state.name}, OSM Relation ID: ${state.osmRelationId}`);
     await downloadState(state.osmRelationId);
-    await qaState(state.osmRelationId, state.name);
+    await boundaryCheck(`output/${state.osmRelationId}.csv`, `output/${state.name.replace(/\s/g, '_')}.csv`);
+    console.log(`Boundary check complete for ${state.name}, OSM Relation ID: ${state.osmRelationId}`);
     convertCsvToHtml(`output/${state.name.replace(/\s/g, '_')}.csv`);
     convertCsvToHtml(`output/${state.name.replace(/\s/g, '_')}_flagged.csv`);
 }
@@ -46,30 +48,6 @@ async function downloadState(osmID) {
   });
 }
 
-async function qaState(osmID, stateName) {
-  return new Promise((resolve, reject) => {
-    const args = [`output/${osmID}.csv`, `output/${stateName.replace(/\s/g, '_')}.csv`];
-    const callee = spawn('node', ['./wikidata_boundary_check.js', ...args]);
-
-    callee.stderr.on('data', (data) => {
-      console.error(`stderr: ${data}`);
-    });
-
-    callee.stdout.on('data', (data) => {
-      console.log(`stdout: ${data}`);
-    });
-
-    callee.on('close', (code) => {
-      if (code === 0) {
-        resolve();
-        console.log(`${stateName} Boundary analysis complete!`);
-      } else {
-        reject(new Error(`child process exited with code ${code}`));
-      }
-    });
-  });
-}
-
 const outputFolderPath = path.join(__dirname, 'output');
 
 fs.mkdir(outputFolderPath, { recursive: true }, (error) => {
@@ -78,4 +56,4 @@ fs.mkdir(outputFolderPath, { recursive: true }, (error) => {
     }
 });
 
-processStates();17/40.753326/-73.982224
+processStates();
