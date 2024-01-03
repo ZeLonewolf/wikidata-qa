@@ -10,12 +10,15 @@ async function convertCsvToHtml(csvFilePath) {
 
     const htmlFilePath = csvFilePath.replace('.csv', '.html');
 
+    let data;
     // Read CSV file
-    fs.readFileSync(csvFilePath, 'utf8', function(err, data) {
+    fs.readFileSync(csvFilePath, 'utf8', function(err, fileData) {
         if (err) {
             console.error("Could not read file: ", err);
             return;
         }
+        data = fileData;
+    });
 
         // Parse CSV file
         await Papa.parse(data, {
@@ -64,7 +67,6 @@ async function convertCsvToHtml(csvFilePath) {
                 });
             }
         });
-    });
 }
 
 module.exports = { convertCsvToHtml };
