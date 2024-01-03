@@ -12,6 +12,8 @@ async function processStates() {
     states.sort((a, b) => a.name.localeCompare(b.name));
     generateHTML(states.map(item => item.name));
     for (const state of states) {
+      // Hack
+      if(state.name !== "Pennsylvania")
       await processState(state);
     }
   } catch (error) {
