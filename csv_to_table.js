@@ -18,7 +18,7 @@ function convertCsvToHtml(csvFilePath) {
         }
 
         // Parse CSV file
-        Papa.parse(data, {
+        await Papa.parse(data, {
             header: true,
             complete: function(results) {
                 const rows = results.data;
