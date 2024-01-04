@@ -65,6 +65,9 @@ jobs:
       run: |
         find . -name '*.csv' -exec mv {} combined_output/ \;
 
+    - name: List files
+      run: ls -lR
+
     - name: Upload Combined 🏗
       uses: actions/upload-pages-artifact@v3
       with:
