@@ -13,7 +13,9 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    strategy:
+      matrix:
+        state: ["Rhode Island", "Massachusetts", "Connecticut"]
     steps:
     - uses: actions/checkout@v4
 
@@ -25,14 +27,37 @@ jobs:
     - name: Install dependencies
       run: npm install axios qs csv-parser csv-writer papaparse
 
-    - name: Run script
-      run: node ./us-wikidata_qa.js "Rhode Island"
+    - name: Run script for ${{ matrix.state }}
+      run: node ./us-wikidata_qa.js "${{ matrix.state }}"
 
-    - name: Upload 🏗
-      uses: actions/upload-pages-artifact@v3
+    - name: Upload result for ${{ matrix.state }}
+      uses: actions/upload-artifact@v3
       with:
+        name: output-${{ matrix.state }}
         path: ./output
 
-    - name: Deploy 🚀
+  combine:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@v3
+
+
+    - name: Create combined output directory
+      run: mkdir -p combined_output
+
+    - name: Move all files to combined output directory
+      run: |
+        find . -name '*.csv' -exec mv {} combined_output/ \;
+
+    - name: Upload Combined 🏗
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: ./combined-output
+
+    - name: Deploy Combined 🚀
       id: deployment
       uses: actions/deploy-pages@v4
