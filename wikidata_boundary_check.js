@@ -24,6 +24,14 @@ csvHeader = [
         { id: 'flags', title: 'flags' }
     ];
 
+function expandAbbreviations(text) {
+        const abbreviations = {
+                "St.": "Saint",
+                //Add other cases here
+        };
+        return text.replace(new RegExp(Object.keys(abbreviations).join("|"), 'g'), matched => abbreviations[matched]);
+}
+
 // Cache object
 const wdCache = new Map();
 
@@ -253,9 +261,10 @@ async function processCSV(results, writers) {
                 flags.push(`OSM wikidata ${processedRow.wikidata} redirects to ${wdRedirect}`);
             }
 
-            if(processedRow.wikidata_name != processedRow.name) {
+            if(expandAbbreviations(processedRow.wikidata_name) != expandAbbreviations(processedRow.name)) {
                 flags.push("Wikidata name mismatch");
-            } else if(isNullOrEmpty(processedRow.P402)) {
+            }
+            if(isNullOrEmpty(processedRow.P402)) {
                 flags.push("Missing OSM Relation ID (P402) in wikidata");
                 quickStatementsP402.push({ qid: row.wikidata, P402: `"${processedRow['@id']}"` });
             } else {
