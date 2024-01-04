@@ -61,7 +61,7 @@ jobs:
     - name: Upload Combined 🏗
       uses: actions/upload-pages-artifact@v3
       with:
-        path: ./combined-output
+        path: ./combined_output
 
     - name: Deploy Combined 🚀
       id: deployment
