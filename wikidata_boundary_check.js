@@ -4,19 +4,6 @@ const csv = require('csv-parser');
 const { createObjectCsvWriter } = require('csv-writer');
 const { checkWikipediaMatch } = require('./wikipedia_match.js');
 
-// const inputCSV = process.argv[2];
-// const outputCSV = process.argv[3];
-
-// if (!inputCSV) {
-//     console.error("Please provide an input CSV file name.");
-//     process.exit(1);
-// }
-
-// if (!outputCSV) {
-//     console.error("Please provide an output CSV file name.");
-//     process.exit(1);
-// }
-
 //QIDs that correspond to a non-admin boundary (CDP, unincorporated)
 const CDP_QID = ["Q498162", "Q56064719", "Q17343829"];
 
@@ -171,120 +158,116 @@ const boundaryCheck = async(inputCSV, outputCSV) => {
         ]
     });
 
-    await new Promise((resolve, reject) => {
-        const results = [];
+    const results = [];
 
-        fs.createReadStream(inputCSV)
-            .pipe(csv())
-            .on('data', (data) => {
-                results.push(data);
-            })
-            .on('end', async () => {
-                const processedData = [];
-                const flaggedData = [];
-                const quickStatementsP402 = [];
+    fs.createReadStream(inputCSV)
+        .pipe(csv())
+        .on('data', (data) => {
+            results.push(data);
+        })
+        .on('end', async () => {
+            const processedData = [];
+            const flaggedData = [];
+            const quickStatementsP402 = [];
 
-                let rowCount = 0;
+            let rowCount = 0;
 
-                for (const row of results) {
+            for (const row of results) {
 
-                    if(!isNullOrEmpty(row['name:en'])) {
-                        //Let English name override main name tag
-                        row['name'] = row['name:en'];
-                        delete row['name:en'];
-                    }
-
-                    const P402_reverse_array = await queryWikidataForOSMID(row['@id']);
-                    const qids = P402_reverse_array.map(itemUrl => itemUrl.substring(itemUrl.lastIndexOf('/') + 1));
-                    row['P402_reverse'] = qids.join(', ');
-
-                    let processedRow;
-
-                    const flags = [];
-
-                    if (row.wikidata) { // Make sure this matches your CSV column name
-                        const { P131, P131_name, wikidata_name, P402, P402_count, P31, P31_name } = await fetchData(row.wikidata);
-                        if(P402_count > 1) {
-                            flags.push(`Wikidata item points to ${P402_count} different OSM relations`);
-                        }
-                        processedRow = { ...row, P131, P131_name, wikidata_name, P402, P31, P31_name };
-                    } else {
-                        processedRow = { ...row, P131: '', P131_name: '', wikidata_name: '', P402: '', P31: '', P31_name: '' };
-                    }
-
-                    processedRow['@id'] = `r${processedRow['@id']}`; 
-
-                    if(isNullOrEmpty(processedRow.wikidata)) {
-                        flags.push("Missing wikidata");
-                        if(!isNullOrEmpty(processedRow.P402_reverse)) {
-                            flags.push("P402 link found");
-                        }
-                    } else {
-
-                        const wdRedirect = await checkWikidataRedirect(processedRow.wikidata)
-
-                        if(wdRedirect) {
-                            flags.push(`OSM wikidata ${processedRow.wikidata} redirects to ${wdRedirect}`);
-                        }
-
-                        if(processedRow.wikidata_name != processedRow.name) {
-                            flags.push("Wikidata name mismatch");
-                        } else if(isNullOrEmpty(processedRow.P402)) {
-                            flags.push("Missing OSM Relation ID (P402) in wikidata");
-                            quickStatementsP402.push({ qid: row.wikidata, P402: `"${processedRow['@id']}"` });
-                        } else {
-                            if(processedRow['@id'] != processedRow.P402) {
-                                flags.push("Mismatched OSM ID");
-                            }
-                            //Add check for P402 but no wikidata
-                            if(processedRow.wikidata != processedRow.P402_reverse) {
-                                flags.push("Mismatched P402 link");                    
-                            }
-                        }
-                        if (CDP_QID.some(qid => processedRow.P31.includes(qid)) && processedRow.boundary == "administrative") {
-                            flags.push("Wikidata says CDP/unincorporated, OSM says admin boundary");
-                        }
-                        if (!CDP_QID.some(qid => processedRow.P31.includes(qid)) && processedRow.boundary == "census") {
-                            flags.push("OSM says CDP but wikidata is missing CDP statement");
-                        }
-                        if(!isNullOrEmpty(processedRow.admin_level) && processedRow.boundary == "census") { //CDP
-                            flags.push("Census boundary should not have admin_level");
-                        }
-                        if(processedRow.wikipedia) {
-                            wpFlag = await checkWikipediaMatch(processedRow.wikidata, processedRow.wikipedia);
-                            if(wpFlag) {
-                                flags.push(wpFlag);
-                            }
-                        }
-                        
-                    }
-
-                    processedRow.flags = flags.join(";");
-
-                    processedData.push(processedRow);
-                    if(flags.length > 0) {
-                        flaggedData.push(processedRow);
-                    }
-
-                    ++rowCount;
-                    if(rowCount % 100 == 0) {
-                        console.log(`Processed: ${rowCount} / ${results.length}`);
-                    }
+                if(!isNullOrEmpty(row['name:en'])) {
+                    //Let English name override main name tag
+                    row['name'] = row['name:en'];
+                    delete row['name:en'];
                 }
 
-                csvWriter.writeRecords(processedData)
-                    .then(() => console.log('The CSV file was written successfully'));
+                const P402_reverse_array = await queryWikidataForOSMID(row['@id']);
+                const qids = P402_reverse_array.map(itemUrl => itemUrl.substring(itemUrl.lastIndexOf('/') + 1));
+                row['P402_reverse'] = qids.join(', ');
 
-                csvIssuesWriter.writeRecords(flaggedData)
-                    .then(() => console.log('The CSV flagged-problems file was written successfully'));
+                let processedRow;
 
-                if(quickStatementsP402.length > 0) {
-                    P402Writer.writeRecords(quickStatementsP402)
-                        .then(() => console.log('The P402 CSV file was written successfully'));
+                const flags = [];
+
+                if (row.wikidata) { // Make sure this matches your CSV column name
+                    const { P131, P131_name, wikidata_name, P402, P402_count, P31, P31_name } = await fetchData(row.wikidata);
+                    if(P402_count > 1) {
+                        flags.push(`Wikidata item points to ${P402_count} different OSM relations`);
+                    }
+                    processedRow = { ...row, P131, P131_name, wikidata_name, P402, P31, P31_name };
+                } else {
+                    processedRow = { ...row, P131: '', P131_name: '', wikidata_name: '', P402: '', P31: '', P31_name: '' };
                 }
 
-                resolve();
-            });
+                processedRow['@id'] = `r${processedRow['@id']}`; 
+
+                if(isNullOrEmpty(processedRow.wikidata)) {
+                    flags.push("Missing wikidata");
+                    if(!isNullOrEmpty(processedRow.P402_reverse)) {
+                        flags.push("P402 link found");
+                    }
+                } else {
+
+                    const wdRedirect = await checkWikidataRedirect(processedRow.wikidata)
+
+                    if(wdRedirect) {
+                        flags.push(`OSM wikidata ${processedRow.wikidata} redirects to ${wdRedirect}`);
+                    }
+
+                    if(processedRow.wikidata_name != processedRow.name) {
+                        flags.push("Wikidata name mismatch");
+                    } else if(isNullOrEmpty(processedRow.P402)) {
+                        flags.push("Missing OSM Relation ID (P402) in wikidata");
+                        quickStatementsP402.push({ qid: row.wikidata, P402: `"${processedRow['@id']}"` });
+                    } else {
+                        if(processedRow['@id'] != processedRow.P402) {
+                            flags.push("Mismatched OSM ID");
+                        }
+                        //Add check for P402 but no wikidata
+                        if(processedRow.wikidata != processedRow.P402_reverse) {
+                            flags.push("Mismatched P402 link");                    
+                        }
+                    }
+                    if (CDP_QID.some(qid => processedRow.P31.includes(qid)) && processedRow.boundary == "administrative") {
+                        flags.push("Wikidata says CDP/unincorporated, OSM says admin boundary");
+                    }
+                    if (!CDP_QID.some(qid => processedRow.P31.includes(qid)) && processedRow.boundary == "census") {
+                        flags.push("OSM says CDP but wikidata is missing CDP statement");
+                    }
+                    if(!isNullOrEmpty(processedRow.admin_level) && processedRow.boundary == "census") { //CDP
+                        flags.push("Census boundary should not have admin_level");
+                    }
+                    if(processedRow.wikipedia) {
+                        wpFlag = await checkWikipediaMatch(processedRow.wikidata, processedRow.wikipedia);
+                        if(wpFlag) {
+                            flags.push(wpFlag);
+                        }
+                    }
+                    
+                }
+
+                processedRow.flags = flags.join(";");
+
+                processedData.push(processedRow);
+                if(flags.length > 0) {
+                    flaggedData.push(processedRow);
+                }
+
+                ++rowCount;
+                if(rowCount % 10 == 0) {
+                    console.log(`Processed: ${rowCount} / ${results.length}`);
+                }
+            }
+
+            csvWriter.writeRecords(processedData)
+                .then(() => console.log('The CSV file was written successfully'));
+
+            csvIssuesWriter.writeRecords(flaggedData)
+                .then(() => console.log('The CSV flagged-problems file was written successfully'));
+
+            if(quickStatementsP402.length > 0) {
+                P402Writer.writeRecords(quickStatementsP402)
+                    .then(() => console.log('The P402 CSV file was written successfully'));
+            }
     });
 };
 

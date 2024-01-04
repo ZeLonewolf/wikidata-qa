@@ -13,7 +13,7 @@ async function processStates() {
     generateHTML(states.map(item => item.name));
     for (const state of states) {
       // Hack
-      if(state.name === "Rhode Island" || state.name === "Massachusetts")
+      if(state.name === "Rhode Island")
       await processState(state);
     }
   } catch (error) {
@@ -22,12 +22,16 @@ async function processStates() {
 }
 
 async function processState(state) {
+    const stateName = state.name.replace(/\s/g, '_');
+    const stateFile = `output/${stateName}.csv`;
+    const stateFlaggedFile = `output/${stateName}_flagged.csv`;
     console.log(`State: ${state.name}, OSM Relation ID: ${state.osmRelationId}`);
     await downloadState(state.osmRelationId);
-    await boundaryCheck(`output/${state.osmRelationId}.csv`, `output/${state.name.replace(/\s/g, '_')}.csv`);
+    await boundaryCheck(`output/${state.osmRelationId}.csv`, stateFile);
     console.log(`Boundary check complete for ${state.name}, OSM Relation ID: ${state.osmRelationId}`);
-    await convertCsvToHtml(`output/${state.name.replace(/\s/g, '_')}.csv`);
-    await convertCsvToHtml(`output/${state.name.replace(/\s/g, '_')}_flagged.csv`);
+    convertCsvToHtml(stateFile);
+    convertCsvToHtml(stateFlaggedFile);
+    console.log(`HTML generation complete for ${state.name}, OSM Relation ID: ${state.osmRelationId}`);
 }
 
 async function downloadState(osmID) {
