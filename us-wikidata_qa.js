@@ -40,7 +40,7 @@ async function downloadState(osmID) {
     });
 
     callee.on('close', (code) => {
-      console.log(`Downloaded CSV from overpass (code ${code})`);
+      console.log(`Downloaded CSV for ${osmID} from overpass (code ${code})`);
       if (code === 0) {
         resolve();
       } else {
