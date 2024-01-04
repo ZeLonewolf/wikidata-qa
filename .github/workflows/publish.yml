@@ -14,7 +14,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
-      max-parallel: 5
+      max-parallel: 8
       matrix:
         state: [
           "Alabama", "Alaska", "Arizona", "Arkansas", "California",
@@ -65,6 +65,7 @@ jobs:
     - name: Move all files to combined output directory
       run: |
         find . -name '*.csv' -exec mv {} combined_output/ \;
+        find . -name '*.html' -exec mv {} combined_output/ \;
 
     - name: List files
       run: ls -lR
