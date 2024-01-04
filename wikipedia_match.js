@@ -11,7 +11,12 @@ function fetchWikidata(wikidataId) {
                 data += chunk;
             });
             res.on('end', () => {
-                return JSON.parse(data);
+                try {
+                    return JSON.parse(data);
+                } catch (error) {
+                    console.error(`Error fetching wikidata ${wikidataId}`);
+                    return null;
+                }
             });
         });
         response.on('error', (error) => {
