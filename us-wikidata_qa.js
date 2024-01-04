@@ -6,15 +6,16 @@ const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-async function processStates() {
+async function processStates(stateName) {
   try {
     const states = await fetchUSStates();
     states.sort((a, b) => a.name.localeCompare(b.name));
     generateHTML(states.map(item => item.name));
     for (const state of states) {
       // Hack
-      if(state.name === "Rhode Island")
-      await processState(state);
+      if(state.name === stateName) {
+          await processState(state);
+      }
     }
   } catch (error) {
     console.error('Error processing states:', error);
@@ -62,4 +63,4 @@ fs.mkdir(outputFolderPath, { recursive: true }, (error) => {
     }
 });
 
-processStates();
+processStates(process.argv[2]);

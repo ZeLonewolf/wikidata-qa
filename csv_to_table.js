@@ -45,12 +45,20 @@ function convertCsvToHtml(csvFilePath) {
 
                 // Generate table rows
                 rows.forEach(function(row) {
-                    if (Object.keys(row).length === 0) {
+                    if (Object.keys(row).length < 2) {
                         return; // Skip empty rows
                     }
                     html += '<tr>';
                     Object.values(row).forEach(function(value) {
-                        // your existing value processing logic
+                        // Convert cell values with semi-colons into bulleted lists
+                        if (value.includes(';')) {
+                            const listItems = value.split(';').map(item => `<li>${item.trim()}</li>`).join('');
+                            value = `<ul>${listItems}</ul>`;
+                        }
+                        // Link OSM relations
+                        value = value.replace(/r(\d+)/g, '<a href="https://openstreetmap.org/relation/$1">r$1</a>');
+                        // Link Wikidata items
+                        value = value.replace(/Q(\d+)/g, '<a href="https://www.wikidata.org/wiki/Q$1">Q$1</a>');
                         html += `<td>${value}</td>`;
                     });
                     html += '</tr>';

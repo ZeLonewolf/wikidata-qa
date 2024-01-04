@@ -26,7 +26,7 @@ jobs:
       run: npm install axios qs csv-parser csv-writer papaparse
 
     - name: Run script
-      run: node ./us-wikidata_qa.js
+      run: node ./us-wikidata_qa.js "Rhode Island"
 
     - name: Upload 🏗
       uses: actions/upload-pages-artifact@v3
