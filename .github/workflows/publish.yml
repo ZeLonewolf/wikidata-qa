@@ -16,6 +16,7 @@ jobs:
     strategy:
       matrix:
         state: ["Rhode Island", "Massachusetts", "Connecticut"]
+        
     steps:
     - uses: actions/checkout@v4
 
@@ -53,6 +54,10 @@ jobs:
       run: |
         find . -name '*.csv' -exec mv {} combined_output/ \;
 
+    - name: All files list
+      run: |
+        ls -lh
+        
     - name: Upload Combined 🏗
       uses: actions/upload-pages-artifact@v3
       with:
