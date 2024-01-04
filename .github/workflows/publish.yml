@@ -25,7 +25,7 @@ jobs:
         node-version: '18.x'
 
     - name: Install dependencies
-      run: npm install axios qs csv-parser csv-writer papaparse
+      run: npm install axios qs csv-parser csv-writer papaparse sync-request
 
     - name: Run script for ${{ matrix.state }}
       run: node ./us-wikidata_qa.js "${{ matrix.state }}"
