@@ -54,7 +54,7 @@ const getNameFromWikidata = async (qid) => {
 
         return label;
     } catch (error) {
-        console.error(`Error fetching data for QID ${qid}:`, error);
+        console.error(`Error fetching data for QID [${qid}]:`, error);
         return "Invalid QID";
     }
 };
