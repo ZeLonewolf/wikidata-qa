@@ -4,7 +4,8 @@ const fs = require('fs');
 const path = require('path');
 
 async function runOverpassQuery(osmRelationID) {
-//    const overpassUrl = 'http://overpass-api.de/api/interpreter';
+    console.log(`Query overpass for boundaries within r${osmRelationID}`);
+    //    const overpassUrl = 'http://overpass-api.de/api/interpreter';
     const overpassUrl = 'https://overpass.kumi.systems/api/interpreter';
     const relationid = Number(osmRelationID) + 3600000000;
     const query = `[timeout:180][out:csv(::id,wikidata,wikipedia,admin_level,boundary,name,"name:en";true;',')];
@@ -26,6 +27,7 @@ async function runOverpassQuery(osmRelationID) {
     } catch (error) {
         console.error('Error fetching data:', error.response ? error.response.data : error);
     }
+    console.log(`Query overpass for boundaries within r${osmRelationID}`);
 }
 
 // Function to save data to a CSV file
