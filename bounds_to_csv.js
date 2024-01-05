@@ -5,8 +5,7 @@ const path = require('path');
 
 async function saveBoundariesWithinToCSV(osmRelationID) {
     console.log(`Query overpass for boundaries within r${osmRelationID}`);
-    //    const overpassUrl = 'http://overpass-api.de/api/interpreter';
-    const overpassUrl = 'https://overpass.kumi.systems/api/interpreter';
+    const overpassUrl = 'http://overpass-api.de/api/interpreter';
     const relationid = Number(osmRelationID) + 3600000000;
     const query = `[timeout:180][out:csv(::id,wikidata,wikipedia,admin_level,boundary,name,"name:en";true;',')];
         area(id:${relationid})->.a;
