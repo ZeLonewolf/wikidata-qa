@@ -60,8 +60,6 @@ function cacheWikidataNames(qids) {
                 }
             });
             const body = JSON.parse(res.getBody('utf8'));
-            // console.log(body);
-            // chunk.forEach(qid => {console.log(body.entities[qid].labels)});
 
             chunk.forEach(qid => {
                 try {
