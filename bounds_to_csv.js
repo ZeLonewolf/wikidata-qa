@@ -22,12 +22,12 @@ async function saveBoundariesWithinToCSV(osmRelationID) {
                 'Content-Type': 'application/x-www-form-urlencoded'
             }
         });
-        console.log(response.data);
+        console.log(`Received ${response.data.length} bytes from Overpass`);
         saveToFile(osmRelationID, response.data);
     } catch (error) {
         console.error('Error fetching data:', error.response ? error.response.data : error);
     }
-    console.log(`Query overpass for boundaries within r${osmRelationID}`);
+    console.log(`Saved overpass results for boundaries within r${osmRelationID}`);
 }
 
 // Function to save data to a CSV file
