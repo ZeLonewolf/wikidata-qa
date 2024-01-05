@@ -3,7 +3,7 @@ const qs = require('qs');  // Required for proper query string formatting
 const fs = require('fs');
 const path = require('path');
 
-async function runOverpassQuery(osmRelationID) {
+async function saveBoundariesWithinToCSV(osmRelationID) {
     console.log(`Query overpass for boundaries within r${osmRelationID}`);
     //    const overpassUrl = 'http://overpass-api.de/api/interpreter';
     const overpassUrl = 'https://overpass.kumi.systems/api/interpreter';
@@ -42,14 +42,16 @@ function saveToFile(osmRelationID, data) {
     });
 }
 
-function main() {
+// function main() {
 
-    const osmRelationID = process.argv[2];
-    if (!osmRelationID) {
-        console.log('Please provide a location name.');
-        return;
-    }
-    runOverpassQuery(osmRelationID);
-}
+//     const osmRelationID = process.argv[2];
+//     if (!osmRelationID) {
+//         console.log('Please provide a location name.');
+//         return;
+//     }
+//     runOverpassQuery(osmRelationID);
+// }
 
-main();
+// main();
+
+module.exports = { saveBoundariesWithinToCSV }
