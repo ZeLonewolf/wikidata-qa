@@ -34,7 +34,11 @@ function convertCsvToHtml(csvFilePath) {
                     return;
                 }
 
-                let html = '<html><body><table border="1">';
+                let html = '<html><body>';
+                html += `Updated on <b>${new Date()}</b><br />`;
+                html += `<a href="https://github.com/ZeLonewolf/wikidata-qa">Source code on GitHub</a><br />`;
+                html += `Findings: <b>${rows.length -1}</b><br />`;
+                html += '<table border="1">';
 
                 // Generate table headers
                 html += '<tr>';
