@@ -3,6 +3,7 @@ const { generateHTML } = require('./generate_index.js');
 const { convertCsvToHtml } = require("./csv_to_table.js");
 const { boundaryCheck } = require("./wikidata_boundary_check.js");
 const { spawn } = require('child_process');
+const { saveBoundariesWithinToCSV } = require('./bounds_to_csv.js');
 const fs = require('fs');
 const path = require('path');
 
@@ -27,32 +28,12 @@ async function processState(state) {
     const stateFile = `output/${stateName}.csv`;
     const stateFlaggedFile = `output/${stateName}_flagged.csv`;
     console.log(`State: ${state.name}, OSM Relation ID: ${state.osmRelationId}`);
-    await downloadState(state.osmRelationId);
+    await saveBoundariesWithinToCSV(state.osmRelationId);
     await boundaryCheck(`output/${state.osmRelationId}.csv`, stateFile);
     console.log(`Boundary check complete for ${state.name}, OSM Relation ID: ${state.osmRelationId}`);
     convertCsvToHtml(stateFile);
     convertCsvToHtml(stateFlaggedFile);
     console.log(`HTML generation complete for ${state.name}, OSM Relation ID: ${state.osmRelationId}`);
-}
-
-async function downloadState(osmID) {
-  return new Promise((resolve, reject) => {
-    const args = [osmID];
-    const callee = spawn('node', ['./bounds_to_csv.js', ...args]);
-
-    callee.stderr.on('data', (data) => {
-      console.error(`stderr: ${data}`);
-    });
-
-    callee.on('close', (code) => {
-      console.log(`Downloaded CSV for ${osmID} from overpass (code ${code})`);
-      if (code === 0) {
-        resolve();
-      } else {
-        reject(new Error(`child process exited with code ${code}`));
-      }
-    });
-  });
 }
 
 const outputFolderPath = path.join(__dirname, 'output');
