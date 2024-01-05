@@ -42,16 +42,4 @@ function saveToFile(osmRelationID, data) {
     });
 }
 
-// function main() {
-
-//     const osmRelationID = process.argv[2];
-//     if (!osmRelationID) {
-//         console.log('Please provide a location name.');
-//         return;
-//     }
-//     runOverpassQuery(osmRelationID);
-// }
-
-// main();
-
 module.exports = { saveBoundariesWithinToCSV }
