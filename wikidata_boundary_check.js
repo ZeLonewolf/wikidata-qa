@@ -66,7 +66,6 @@ function cacheWikidataClaims(qids) {
             chunk.forEach(qid => {
                 try {
                     const claims = data.entities[qid].claims;
-                    console.log(`Fetched claims for [${qid}]`);
                     wdClaimsCache.set(qid, claims);
                 } catch (error) {
                     console.log(`Error fetching data for QID [${qid}]:`);
@@ -101,7 +100,6 @@ function cacheWikidataNames(qids) {
             chunk.forEach(qid => {
                 try {
                     const label = body.entities[qid].labels.en.value;
-                    console.log(`Fetched label for [${qid} = ${label}]`);
                     wdCache.set(qid, label);
                 } catch (error) {
                     console.log(`Error fetching data for QID [${qid}]:`);
