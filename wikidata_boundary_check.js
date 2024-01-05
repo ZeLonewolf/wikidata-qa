@@ -35,12 +35,52 @@ function expandAbbreviations(text) {
 // Cache object
 const wdCache = new Map();
 
-function getNameFromWikidata (qid) {
-    // Check if the result is in the cache
-    if (wdCache.has(qid)) {
-        return wdCache.get(qid);
+function chunkArray(array, chunkSize) {
+    const chunks = [];
+    for (let i = 0; i < array.length; i += chunkSize) {
+        chunks.push(array.slice(i, i + chunkSize));
     }
+    return chunks;
+}
 
+function cacheWikidataNames(qids) {
+    console.log(`Caching ${qids.length} wikidata names`);
+
+    const chunkedQids = chunkArray(qids, 50);
+
+    chunkedQids.forEach(chunk => {
+        try {
+            const res = request('GET', `https://www.wikidata.org/w/api.php`, {
+                qs: {
+                    action: 'wbgetentities',
+                    ids: chunk.join('|'),
+                    props: 'labels',
+                    languages: 'en',
+                    format: 'json'
+                }
+            });
+            const body = JSON.parse(res.getBody('utf8'));
+            // console.log(body);
+            // chunk.forEach(qid => {console.log(body.entities[qid].labels)});
+
+            chunk.forEach(qid => {
+                try {
+                    const label = body.entities[qid].labels.en.value;
+                    console.log(`Fetched label for [${qid} = ${label}]`);
+                    wdCache.set(qid, label);
+                } catch (error) {
+                    console.log(`Error fetching data for QID [${qid}]:`);
+                }
+            });
+
+            console.log(`Cached ${chunk.length} wikidata names`);
+        } catch (error) {
+            console.error(`General error fetching data for chunk of QIDs:`, error);
+        }
+    });
+}
+
+function fetchAndCacheWikidataName(qid) {
     try {
         const res = request('GET', `https://www.wikidata.org/w/api.php`, {
             qs: {
@@ -62,6 +102,17 @@ function getNameFromWikidata (qid) {
         console.error(`Error fetching data for QID [${qid}]:`, error);
         return "Invalid QID";
     }
+}
+
+function getNameFromWikidata (qid) {
+    if(isNullOrEmpty(qid)) {
+        return "";
+    } 
+    // Check if the result is in the cache
+    if (wdCache.has(qid)) {
+        return wdCache.get(qid);
+    }
+    return fetchAndCacheWikidataName(qid);
 };
 
 function queryWikidataForOSMID(osmId) {
@@ -218,6 +269,13 @@ async function processCSV(results, writers) {
     const processedData = [];
     const flaggedData = [];
     const quickStatementsP402 = [];
+
+    const qids = results
+        .map(row => row.wikidata)
+        .filter(qid => /^Q\d+$/.test(qid));
+
+    //Pre-cache names
+    cacheWikidataNames(qids);
 
     let rowCount = 0;
     for (const row of results) {
