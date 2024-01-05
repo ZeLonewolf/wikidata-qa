@@ -25,15 +25,19 @@ csvHeader = [
     ];
 
 function expandAbbreviations(text) {
-        const abbreviations = {
-                "St.": "Saint",
-                //Add other cases here
-        };
-        return text.replace(new RegExp(Object.keys(abbreviations).join("|"), 'g'), matched => abbreviations[matched]);
+    if(isNullOrEmpty(text)) {
+        return text;
+    }
+    const abbreviations = {
+            "St.": "Saint",
+            //Add other cases here
+    };
+    return text.replace(new RegExp(Object.keys(abbreviations).join("|"), 'g'), matched => abbreviations[matched]);
 }
 
 // Cache object
 const wdCache = new Map();
+const wdClaimsCache = new Map();
 
 function chunkArray(array, chunkSize) {
     const chunks = [];
@@ -41,6 +45,39 @@ function chunkArray(array, chunkSize) {
         chunks.push(array.slice(i, i + chunkSize));
     }
     return chunks;
+}
+
+function cacheWikidataClaims(qids) {
+    console.log(`Caching ${qids.length} wikidata claims`);
+
+    const chunkedQids = chunkArray(qids, 50);
+
+    chunkedQids.forEach(chunk => {
+        try {
+            const res = request('GET', `https://www.wikidata.org/w/api.php`, {
+                qs: {
+                    action: 'wbgetentities',
+                    ids: chunk.join('|'),
+                    props: 'claims',
+                    format: 'json'
+                }
+            });
+            const data = JSON.parse(res.getBody('utf8'));
+            chunk.forEach(qid => {
+                try {
+                    const claims = data.entities[qid].claims;
+                    console.log(`Fetched claims for [${qid}]`);
+                    wdClaimsCache.set(qid, claims);
+                } catch (error) {
+                    console.log(`Error fetching data for QID [${qid}]:`);
+                }
+            });
+
+            console.log(`Cached ${chunk.length} wikidata claims`);
+        } catch (error) {
+            console.error(`General error fetching data for chunk of QIDs:`, error);
+        }
+    });
 }
 
 function cacheWikidataNames(qids) {
@@ -177,16 +214,7 @@ function checkWikidataRedirect(qid) {
 
 function fetchData(qid) {
     try {
-        const res = request('GET', `https://www.wikidata.org/w/api.php`, {
-            qs: {
-                action: 'wbgetentities',
-                ids: qid,
-                props: 'claims',
-                format: 'json'
-            }
-        });
-        const data = JSON.parse(res.getBody('utf8'));
-        const claims = data.entities[qid].claims;
+        const claims = wdClaimsCache.get(qid);
 
         const P31Claims = claims.P31 || [];
         const P31Values = [];
@@ -274,6 +302,7 @@ async function processCSV(results, writers) {
 
     //Pre-cache names
     cacheWikidataNames(qids);
+    cacheWikidataClaims(qids);
 
     let rowCount = 0;
     for (const row of results) {
