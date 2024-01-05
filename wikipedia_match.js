@@ -30,7 +30,7 @@ function fetchWikidata(wikidataId) {
 }
 
 // Function to check if the Wikipedia link matches
-function checkWikipediaMatch(wikidataId, rawWikipediaTitle) {
+function checkWikipediaMatch(qid, rawWikipediaTitle) {
     let wikipediaTitle;
     let wikipediaLang;
 
@@ -43,19 +43,19 @@ function checkWikipediaMatch(wikidataId, rawWikipediaTitle) {
         return 'Malformed wikipedia tag, should be lang:Title';
     }
 
-    const data = fetchWikidata(wikidataId);
+    const data = fetchWikidata(qid);
     if (!data) return;
 
-    const siteLinks = data.entities[wikidataId]?.sitelinks;
+    const siteLinks = data.entities[qid]?.sitelinks;
     if (siteLinks && siteLinks[`${wikipediaLang}wiki`]) {
         const wikidataWikipediaTitle = siteLinks[`${wikipediaLang}wiki`].title.replace(' ', '_');
         if (wikidataWikipediaTitle.toLowerCase() === wikipediaTitle.toLowerCase().replace(" ", "_")) {
             // Match found
         } else {
-            return `${wikidataId} has wikipedia entry ${wikidataWikipediaTitle} but OSM has ${wikipediaTitle}`;
+            return `${qid} has wikipedia entry ${wikidataWikipediaTitle} but OSM has ${wikipediaTitle}`;
         }
     } else {
-        return `${wikidataId} has no wikipedia entry but OSM has ${wikipediaTitle}`;
+        return `${qid} has no wikipedia entry but OSM has ${wikipediaTitle}`;
     }
 }
 
