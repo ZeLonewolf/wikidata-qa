@@ -4,7 +4,6 @@ const { createObjectCsvWriter } = require('csv-writer');
 const { checkWikipediaMatch } = require('./wikipedia_match.js');
 const { parse } = require('csv-parse/sync');
 
-
 //QIDs that correspond to a non-admin boundary (CDP, unincorporated)
 const CDP_QID = ["Q498162", "Q56064719", "Q17343829"];
 
@@ -48,8 +47,6 @@ function chunkArray(array, chunkSize) {
 }
 
 function cacheWikidataClaims(qids) {
-    console.log(`Caching ${qids.length} wikidata claims`);
-
     const chunkedQids = chunkArray(qids, 50);
 
     chunkedQids.forEach(chunk => {
@@ -80,8 +77,6 @@ function cacheWikidataClaims(qids) {
 }
 
 function cacheWikidataNames(qids) {
-    console.log(`Caching ${qids.length} wikidata names`);
-
     const chunkedQids = chunkArray(qids, 50);
 
     chunkedQids.forEach(chunk => {
@@ -248,7 +243,7 @@ function isNullOrEmpty(value) {
     return value === null || value === undefined || value === '';
 }
 
-async function boundaryCheck(inputCSV, outputCSV) {
+async function boundaryCheck(inputCSV, outputCSV, stateAbbrev, CDPs) {
 
     const outputIssuesCSV = outputCSV.replace('.csv', '_flagged.csv');
     const outputP402CSV = outputCSV.replace('.csv', '_P402_entry.csv');
@@ -286,10 +281,11 @@ async function boundaryCheck(inputCSV, outputCSV) {
         skip_empty_lines: true
     });
 
-    await processCSV(results, writers);
+    await processCSV(results, writers, stateAbbrev, CDPs);
 }
 
-async function processCSV(results, writers) {
+async function processCSV(results, writers, stateAbbrev, CDPs) {
+
     const processedData = [];
     const flaggedData = [];
     const quickStatementsP402 = [];
@@ -302,6 +298,8 @@ async function processCSV(results, writers) {
     cacheWikidataNames(qids);
     cacheWikidataClaims(qids);
 
+    let unfoundCDPs = [...CDPs];
+
     let rowCount = 0;
     for (const row of results) {
 
@@ -310,6 +308,8 @@ async function processCSV(results, writers) {
             row['name'] = row['name:en'];
             delete row['name:en'];
         }
+
+        unfoundCDPs = unfoundCDPs.filter(item => item !== row['name']);
 
         const P402_reverse_array = queryWikidataForOSMID(row['@id']);
         const qids = P402_reverse_array.map(itemUrl => itemUrl.substring(itemUrl.lastIndexOf('/') + 1));
@@ -365,6 +365,9 @@ async function processCSV(results, writers) {
             if (!CDP_QID.some(qid => processedRow.P31.includes(qid)) && processedRow.boundary == "census") {
                 flags.push("OSM says CDP but wikidata is missing CDP statement");
             }
+            if(processedRow.boundary == "census" && !CDPs.includes(processedRow.name)) {
+                flags.push(`OSM boundary=census ${processedRow.name} is not on the census bureau <a href="https://tigerweb.geo.census.gov/tigerwebmain/Files/tab20/tigerweb_tab20_cdp_2020_${stateAbbrev}.html">list</a> of CDPs`);
+            }
             if(!isNullOrEmpty(processedRow.admin_level) && processedRow.boundary == "census") { //CDP
                 flags.push("Census boundary should not have admin_level");
             }
@@ -389,6 +392,15 @@ async function processCSV(results, writers) {
             console.log(`Processed: ${rowCount} / ${results.length}`);
         }
     }
+
+    unfoundCDPs.forEach(cdp =>
+        flaggedData.push(
+            {
+                name: cdp,
+                flags: [`${cdp} is missing from OSM but is listed on the Census Bureau <a href="https://tigerweb.geo.census.gov/tigerwebmain/Files/tab20/tigerweb_tab20_cdp_2020_${stateAbbrev}.html">list</a> of CDPs`]
+            }
+        )    
+    );
 
     await writers.csvWriter.writeRecords(processedData)
         .then(() => console.log('The CSV file was written successfully'));
