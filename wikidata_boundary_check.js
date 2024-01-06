@@ -332,7 +332,7 @@ async function processCSV(results, writers, stateAbbrev, CDPs) {
             }
             if(isNullOrEmpty(processedRow.P402)) {
                 flags.push("Missing OSM Relation ID (P402) in wikidata");
-                quickStatementsP402.push({ qid: row.wikidata, P402: `"${processedRow['@id']}"` });
+                quickStatementsP402.push({ qid: row.wikidata, P402: `"${processedRow['@id'].substring(1)}"` });
             } else {
                 if(processedRow['@id'] != processedRow.P402) {
                     flags.push("Mismatched OSM ID");
