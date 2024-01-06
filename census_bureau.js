@@ -70,7 +70,7 @@ async function getCDPs(stateName, censusAPIKey) {
     // Skip the first row (headers) and filter for CDPs
     const cdpList = rawData.slice(1)
                            .filter(row => row[0].includes('CDP'))
-                           .map(row => row[0].replace(' CDP, Rhode Island', ''));
+                           .map(row => row[0].replace(` CDP, ${stateName}`, ''));
     
     return cdpList; // Return the CDP list
   } catch (error) {

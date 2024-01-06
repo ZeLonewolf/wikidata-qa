@@ -46,7 +46,8 @@ function chunkArray(array, chunkSize) {
     return chunks;
 }
 
-function cacheWikidataClaims(qids) {
+// Refactored function to handle fetching and caching of both data types
+function cacheWikidataData(qids, cacheClaimsFunction, cacheNamesFunction) {
     const chunkedQids = chunkArray(qids, 50);
 
     chunkedQids.forEach(chunk => {
@@ -55,57 +56,40 @@ function cacheWikidataClaims(qids) {
                 qs: {
                     action: 'wbgetentities',
                     ids: chunk.join('|'),
-                    props: 'claims',
+                    props: 'claims|labels',
+                    languages: 'en', // Only necessary for labels
                     format: 'json'
                 }
             });
             const data = JSON.parse(res.getBody('utf8'));
+
             chunk.forEach(qid => {
                 try {
-                    const claims = data.entities[qid].claims;
-                    wdClaimsCache.set(qid, claims);
+                    if (cacheClaimsFunction) {
+                        const claims = data.entities[qid].claims;
+                        cacheClaimsFunction(qid, claims);
+                    }
+                    if (cacheNamesFunction) {
+                        const label = data.entities[qid].labels.en.value;
+                        cacheNamesFunction(qid, label);
+                    }
                 } catch (error) {
                     console.log(`Error fetching data for QID [${qid}]:`);
                 }
             });
 
-            console.log(`Cached ${chunk.length} wikidata claims`);
+            console.log(`Cached ${chunk.length} wikidata entities (claims and labels)`);
         } catch (error) {
             console.error(`General error fetching data for chunk of QIDs:`, error);
         }
     });
 }
 
-function cacheWikidataNames(qids) {
-    const chunkedQids = chunkArray(qids, 50);
-
-    chunkedQids.forEach(chunk => {
-        try {
-            const res = request('GET', `https://www.wikidata.org/w/api.php`, {
-                qs: {
-                    action: 'wbgetentities',
-                    ids: chunk.join('|'),
-                    props: 'labels',
-                    languages: 'en',
-                    format: 'json'
-                }
-            });
-            const body = JSON.parse(res.getBody('utf8'));
-
-            chunk.forEach(qid => {
-                try {
-                    const label = body.entities[qid].labels.en.value;
-                    wdCache.set(qid, label);
-                } catch (error) {
-                    console.log(`Error fetching data for QID [${qid}]:`);
-                }
-            });
-
-            console.log(`Cached ${chunk.length} wikidata names`);
-        } catch (error) {
-            console.error(`General error fetching data for chunk of QIDs:`, error);
-        }
-    });
+// Function to cache both Wikidata claims and names
+function cacheWikidataClaimsAndNames(qids) {
+    cacheWikidataData(qids, 
+        (qid, claims) => wdClaimsCache.set(qid, claims), 
+        (qid, label) => wdCache.set(qid, label));
 }
 
 function fetchAndCacheWikidataName(qid) {
@@ -295,8 +279,7 @@ async function processCSV(results, writers, stateAbbrev, CDPs) {
         .filter(qid => /^Q\d+$/.test(qid));
 
     //Pre-cache names
-    cacheWikidataNames(qids);
-    cacheWikidataClaims(qids);
+    cacheWikidataClaimsAndNames(qids);
 
     let unfoundCDPs = [...CDPs];
 
