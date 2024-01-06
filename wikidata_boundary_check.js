@@ -292,7 +292,9 @@ async function processCSV(results, writers, stateAbbrev, CDPs) {
             delete row['name:en'];
         }
 
-        unfoundCDPs = unfoundCDPs.filter(item => item !== row['name']);
+        if(row['boundary'] == 'census') {
+            unfoundCDPs = unfoundCDPs.filter(item => item !== row['name']);
+        }
 
         const P402_reverse_array = queryWikidataForOSMID(row['@id']);
         const qids = P402_reverse_array.map(itemUrl => itemUrl.substring(itemUrl.lastIndexOf('/') + 1));
