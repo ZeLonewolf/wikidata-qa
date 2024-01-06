@@ -3,7 +3,6 @@ const { generateHTML } = require('./generate_index.js');
 const { convertCsvToHtml } = require("./csv_to_table.js");
 const { boundaryCheck } = require("./wikidata_boundary_check.js");
 const { getCDPs } = require ("./census_bureau.js");
-const { spawn } = require('child_process');
 const { saveBoundariesWithinToCSV } = require('./bounds_to_csv.js');
 const fs = require('fs');
 const path = require('path');
