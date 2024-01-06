@@ -11,7 +11,7 @@ async function saveBoundariesWithinToCSV(osmRelationID) {
         area(id:${relationid})->.a;
         (
           rel[boundary=administrative][admin_level~"^7|8|9$"](area.a);
-          rel[boundary=census](area.a);
+          rel[boundary=census][border_type!=unorganized_territory](area.a);
         );
         out;`;
     console.log(query);
