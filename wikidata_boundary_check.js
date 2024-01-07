@@ -287,6 +287,22 @@ function simplifyWDName(text) {
     return text.split(',')[0];
 }
 
+function getDistinctP31Values() {
+    const distinctP31Values = new Set();
+
+    for (const claims of wdClaimsCache.values()) {
+        const P31Claims = claims.P31 || [];
+        for (const claim of P31Claims) {
+            const claimValue = claim.mainsnak.datavalue.value.id;
+            if (claimValue) {
+                distinctP31Values.add(claimValue);
+            }
+        }
+    }
+
+    return Array.from(distinctP31Values);
+}
+
 async function processCSV(results, writers, stateAbbrev, CDPs) {
 
     const processedData = [];
@@ -300,6 +316,7 @@ async function processCSV(results, writers, stateAbbrev, CDPs) {
     //Pre-cache names
     cacheWikidataClaimsAndNames(qids);
     cacheWikidataRedirects(qids);
+    cacheWikidataClaimsAndNames(getDistinctP31Values());
 
     let unfoundCDPs = [...CDPs];
 
