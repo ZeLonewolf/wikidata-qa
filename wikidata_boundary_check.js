@@ -1,7 +1,6 @@
 const fs = require('fs');
 const request = require('sync-request');
 const { createObjectCsvWriter } = require('csv-writer');
-const { checkWikipediaMatch } = require('./wikipedia_match.js');
 const { parse } = require('csv-parse/sync');
 
 //QIDs that correspond to a non-admin boundary (CDP, unincorporated)
@@ -38,6 +37,7 @@ function expandAbbreviations(text) {
 const wdCache = new Map();
 const wdClaimsCache = new Map();
 const wdRedirects = new Map();
+const wdSitelinksCache = new Map();
 const CHUNK_SIZE = 50;
 
 function chunkArray(array, chunkSize) {
@@ -49,7 +49,7 @@ function chunkArray(array, chunkSize) {
 }
 
 // Refactored function to handle fetching and caching of both data types
-function cacheWikidataData(qids, cacheClaimsFunction, cacheNamesFunction) {
+function cacheWikidataData(qids, cacheClaimsFunction, cacheNamesFunction, cacheSitelinksFunction) {
     const chunkedQids = chunkArray(qids, CHUNK_SIZE);
 
     chunkedQids.forEach(chunk => {
@@ -58,7 +58,7 @@ function cacheWikidataData(qids, cacheClaimsFunction, cacheNamesFunction) {
                 qs: {
                     action: 'wbgetentities',
                     ids: chunk.join('|'),
-                    props: 'claims|labels',
+                    props: 'claims|labels|sitelinks',
                     languages: 'en', // Only necessary for labels
                     format: 'json'
                 }
@@ -74,6 +74,11 @@ function cacheWikidataData(qids, cacheClaimsFunction, cacheNamesFunction) {
                     if (cacheNamesFunction) {
                         const label = data.entities[qid].labels.en.value;
                         cacheNamesFunction(qid, label);
+                    }
+                    if (cacheSitelinksFunction) {
+                        // Retrieve and process sitelinks
+                        const sitelinks = data.entities[qid].sitelinks;
+                        cacheSitelinksFunction(qid, sitelinks);
                     }
                 } catch (error) {
                     console.log(`Error fetching data for QID [${qid}]:`);
@@ -91,7 +96,8 @@ function cacheWikidataData(qids, cacheClaimsFunction, cacheNamesFunction) {
 function cacheWikidataClaimsAndNames(qids) {
     cacheWikidataData(qids, 
         (qid, claims) => wdClaimsCache.set(qid, claims), 
-        (qid, label) => wdCache.set(qid, label));
+        (qid, label) => wdCache.set(qid, label),
+        (qid, sitelinks) => wdSitelinksCache.set(qid, sitelinks));
 }
 
 function fetchAndCacheWikidataName(qid) {
@@ -433,6 +439,38 @@ async function processCSV(results, writers, stateAbbrev, CDPs) {
     if(quickStatementsP402.length > 0) {
         await writers.P402Writer.writeRecords(quickStatementsP402)
             .then(() => console.log('The P402 CSV file was written successfully'));
+    }
+}
+
+// Function to check if the Wikipedia link matches
+function checkWikipediaMatch(qid, rawWikipediaTitle) {
+
+    const siteLinks = wdSitelinksCache.get(qid);
+    if(!siteLinks) {
+        return 'No wikipedia links in wikidata but OSM has wikipedia tag';
+    }
+
+    let wikipediaTitle;
+    let wikipediaLang;
+
+    // Check if the inputString contains a colon
+    if (rawWikipediaTitle.includes(':')) {
+        const parts = rawWikipediaTitle.split(':');
+        wikipediaLang = parts[0];
+        wikipediaTitle = parts[1];
+    } else {
+        return 'Malformed wikipedia tag, should be lang:Title';
+    }
+
+    if (siteLinks[`${wikipediaLang}wiki`]) {
+        const wikidataWikipediaTitle = siteLinks[`${wikipediaLang}wiki`].title.replace(' ', '_');
+        if (wikidataWikipediaTitle.toLowerCase() === wikipediaTitle.toLowerCase().replace(" ", "_")) {
+            // Match found
+        } else {
+            return `${qid} has wikipedia entry ${wikidataWikipediaTitle} but OSM has ${wikipediaTitle}`;
+        }
+    } else {
+        return `${qid} has no wikipedia entry but OSM has ${wikipediaTitle}`;
     }
 }
 
