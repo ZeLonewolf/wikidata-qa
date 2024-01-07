@@ -37,6 +37,8 @@ function expandAbbreviations(text) {
 // Cache object
 const wdCache = new Map();
 const wdClaimsCache = new Map();
+const wdRedirects = new Map();
+const CHUNK_SIZE = 50;
 
 function chunkArray(array, chunkSize) {
     const chunks = [];
@@ -48,7 +50,7 @@ function chunkArray(array, chunkSize) {
 
 // Refactored function to handle fetching and caching of both data types
 function cacheWikidataData(qids, cacheClaimsFunction, cacheNamesFunction) {
-    const chunkedQids = chunkArray(qids, 50);
+    const chunkedQids = chunkArray(qids, CHUNK_SIZE);
 
     chunkedQids.forEach(chunk => {
         try {
@@ -154,39 +156,52 @@ function queryWikidataForOSMID(osmId) {
     }
 };
 
-function checkWikidataRedirect(qid) {
+function cacheWikidataRedirects(qids) {
   const url = `https://www.wikidata.org/w/api.php`;
 
-  try {
-    const res = request('GET', url, {
-      qs: {
-        action: 'wbgetentities',
-        ids: qid,
-        format: 'json',
-        redirects: 'yes'
-      },
-      headers: {
-        'User-Agent': 'ZeLonewolf-Wikidata-QA-Scripts/1.0 (https://github.com/ZeLonewolf/wikidata-qa)'
-      }
-    });
-    const data = JSON.parse(res.getBody('utf8'));
-
-    if (data && data.entities) {
-      if (data.entities[qid]) {
-        // No redirection
-        return null;
-      } else {
-        // Find the redirect target
-        const redirectTarget = Object.keys(data.entities)[0];
-        return redirectTarget;
-      }
+    if (qids.length === 0) {
+        return;
     }
 
-    return null;
-  } catch (error) {
-    console.error('Error checking Wikidata redirect:', error);
-    return null;
-  }
+    const chunkedQids = chunkArray(qids, CHUNK_SIZE);
+    chunkedQids.forEach(chunk => {
+
+        try {
+            const res = request('GET', url, {
+            qs: {
+                action: 'wbgetentities',
+                ids: chunk.join('|'),
+                format: 'json',
+                redirects: 'yes'
+            },
+            headers: {
+                'User-Agent': 'ZeLonewolf-Wikidata-QA-Scripts/1.0 (https://github.com/ZeLonewolf/wikidata-qa)'
+            }
+            });
+            const data = JSON.parse(res.getBody('utf8'));
+
+            if (data && data.entities) {
+                chunk.forEach(qid => {
+                    if (data.entities[qid]) {
+                        // No redirection
+                        wdRedirects.set(qid, null);
+                    } else {
+                        // Find the redirect target
+                        const redirectTarget = Object.keys(data.entities).find(key => key !== qid);
+                        wdRedirects.set(qid, redirectTarget);
+                    }
+                });
+            }
+            console.log(`Cached ${chunk.length} wikidata redirect checks`);
+
+        } catch (error) {
+            console.error('Error checking Wikidata redirects:', error);
+        }
+    });
+}
+
+function checkWikidataRedirect(qid) {
+    return wdRedirects.get(qid);
 }
 
 function fetchData(qid) {
@@ -280,6 +295,7 @@ async function processCSV(results, writers, stateAbbrev, CDPs) {
 
     //Pre-cache names
     cacheWikidataClaimsAndNames(qids);
+    cacheWikidataRedirects(qids);
 
     let unfoundCDPs = [...CDPs];
 
