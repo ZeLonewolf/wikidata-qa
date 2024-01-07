@@ -283,6 +283,10 @@ async function boundaryCheck(inputCSV, outputCSV, stateAbbrev, CDPs) {
     await processCSV(results, writers, stateAbbrev, CDPs);
 }
 
+function simplifyWDName(text) {
+    return text.split(',')[0];
+}
+
 async function processCSV(results, writers, stateAbbrev, CDPs) {
 
     const processedData = [];
@@ -345,7 +349,7 @@ async function processCSV(results, writers, stateAbbrev, CDPs) {
                 flags.push(`OSM wikidata ${processedRow.wikidata} redirects to ${wdRedirect}`);
             }
 
-            if(expandAbbreviations(processedRow.wikidata_name) != expandAbbreviations(processedRow.name)) {
+            if(simplifyWDName(expandAbbreviations(processedRow.wikidata_name)) != expandAbbreviations(processedRow.name)) {
                 flags.push("Wikidata name mismatch");
             }
             if(isNullOrEmpty(processedRow.P402)) {
