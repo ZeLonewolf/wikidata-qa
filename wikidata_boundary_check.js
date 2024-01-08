@@ -100,30 +100,6 @@ function cacheWikidataClaimsAndNames(qids) {
         (qid, sitelinks) => wdSitelinksCache.set(qid, sitelinks));
 }
 
-function fetchAndCacheWikidataName(qid) {
-    try {
-        const res = request('GET', `https://www.wikidata.org/w/api.php`, {
-            qs: {
-                action: 'wbgetentities',
-                ids: qid,
-                props: 'labels',
-                languages: 'en',
-                format: 'json'
-            }
-        });
-        const body = JSON.parse(res.getBody('utf8'));
-        const label = body.entities[qid].labels.en.value;
-
-        // Cache the result
-        wdCache.set(qid, label);
-
-        return label;
-    } catch (error) {
-        console.error(`Error fetching data for QID [${qid}]:`, error);
-        return "Invalid QID";
-    }
-}
-
 function getNameFromWikidata (qid) {
     if(isNullOrEmpty(qid)) {
         return "";
@@ -132,7 +108,8 @@ function getNameFromWikidata (qid) {
     if (wdCache.has(qid)) {
         return wdCache.get(qid);
     }
-    return fetchAndCacheWikidataName(qid);
+    console.log(`Error! Cache miss: ${qid}`);
+    return '';
 };
 
 function queryWikidataForOSMID(osmId) {
@@ -293,20 +270,22 @@ function simplifyWDName(text) {
     return text.split(',')[0];
 }
 
-function getDistinctP31Values() {
-    const distinctP31Values = new Set();
+function getClaimWDQIDsForLookup() {
+    const distinctQIDs = new Set();
 
     for (const claims of wdClaimsCache.values()) {
         const P31Claims = claims.P31 || [];
         for (const claim of P31Claims) {
             const claimValue = claim.mainsnak.datavalue.value.id;
             if (claimValue) {
-                distinctP31Values.add(claimValue);
+                distinctQIDs.add(claimValue);
             }
         }
+        const P131 = claims.P131?.[0]?.mainsnak?.datavalue?.value?.id;
+        if (P131) distinctQIDs.add(P131);
     }
 
-    return Array.from(distinctP31Values);
+    return Array.from(distinctQIDs);
 }
 
 async function processCSV(results, writers, stateAbbrev, CDPs) {
@@ -322,7 +301,7 @@ async function processCSV(results, writers, stateAbbrev, CDPs) {
     //Pre-cache names
     cacheWikidataClaimsAndNames(qids);
     cacheWikidataRedirects(qids);
-    cacheWikidataClaimsAndNames(getDistinctP31Values());
+    cacheWikidataClaimsAndNames(getClaimWDQIDsForLookup());
 
     let unfoundCDPs = [...CDPs];
 
