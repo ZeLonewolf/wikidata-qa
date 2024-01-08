@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
-      max-parallel: 5
+      max-parallel: 8
       matrix:
         state: [
           "Pennsylvania", "New York", "Ohio", "Texas", "Wisconsin", "Michigan",
