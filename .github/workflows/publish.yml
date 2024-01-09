@@ -18,17 +18,13 @@ jobs:
       max-parallel: 8
       matrix:
         state: [
-          "Pennsylvania", "New York", "Ohio", "Texas", "Wisconsin", "Michigan",
-          "Alabama", "Alaska", "Arizona", "Arkansas", "California",
-          "Colorado", "Connecticut", "Delaware", "Florida", "Georgia",
-          "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa",
-          "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland",
-          "Massachusetts", "Minnesota", "Mississippi", "Missouri",
-          "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey",
-          "New Mexico", "North Carolina", "North Dakota",
-          "Oklahoma", "Oregon", "Rhode Island", "South Carolina",
-          "South Dakota", "Tennessee", "Utah", "Vermont",
-          "Virginia", "Washington", "West Virginia", "Wyoming"
+          'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware',
+          'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky',
+          'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi',
+          'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey', 'New Mexico',
+          'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania',
+          'Rhode Island', 'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont',
+          'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming'
         ]
         
     steps:
