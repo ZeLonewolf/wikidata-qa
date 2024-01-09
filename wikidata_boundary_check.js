@@ -113,33 +113,6 @@ function getNameFromWikidata (qid) {
     return '';
 };
 
-function queryWikidataForOSMID(osmId) {
-    const sparqlQuery = `
-        SELECT ?item WHERE {
-            ?item wdt:P402 "${osmId}".
-        }`;
-
-    const url = "https://query.wikidata.org/sparql";
-
-    try {
-        const res = request('GET', url, { 
-            qs: {
-                query: sparqlQuery,
-                format: 'json'
-            },
-            headers: {
-                'User-Agent': 'ZeLonewolf-Wikidata-QA-Scripts/1.0 (https://github.com/ZeLonewolf/wikidata-qa)'
-            }
-        });
-        const body = JSON.parse(res.getBody('utf8'));
-        const items = body.results.bindings.map(binding => binding.item.value);
-        return items;
-    } catch (error) {
-        console.error(`Error querying Wikidata, OSM ID ${osmId}:`);
-        return [];
-    }
-};
-
 function cacheWikidataToOSMIDLinks(osmIds) {
     // Split the OSM IDs into chunks of 50
     const chunks = chunkArray(osmIds, 50);
@@ -177,6 +150,7 @@ function cacheWikidataToOSMIDLinks(osmIds) {
                     wdOSMRelReverseLink.set(osmId, [qid]);
                 }
             });
+            console.log(`Cached ${chunk.length} P402 reverse wikidata references`);
         } catch (error) {
             console.error(`Error querying Wikidata for chunk: ${chunk}`);
         }
@@ -363,9 +337,7 @@ async function processCSV(results, writers, stateAbbrev, CDPs) {
             unfoundCDPs = unfoundCDPs.filter(item => item !== row['name']);
         }
 
-        // const P402_reverse_array = queryWikidataForOSMID(row['@id']);
         const P402_reverse_array = wdOSMRelReverseLink.get(row['@id']); //need null check?
-        // const qids = P402_reverse_array.map(itemUrl => itemUrl.substring(itemUrl.lastIndexOf('/') + 1));
         if(P402_reverse_array) {
             row['P402_reverse'] = P402_reverse_array.join(', ');
         }
