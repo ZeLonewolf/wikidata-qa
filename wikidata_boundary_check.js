@@ -38,6 +38,7 @@ const wdCache = new Map();
 const wdClaimsCache = new Map();
 const wdRedirects = new Map();
 const wdSitelinksCache = new Map();
+const wdOSMRelReverseLink = new Map();
 const CHUNK_SIZE = 50;
 
 function chunkArray(array, chunkSize) {
@@ -136,6 +137,49 @@ function queryWikidataForOSMID(osmId) {
     } catch (error) {
         console.error(`Error querying Wikidata, OSM ID ${osmId}:`);
         return [];
+    }
+};
+
+function cacheWikidataToOSMIDLinks(osmIds) {
+    // Split the OSM IDs into chunks of 50
+    const chunks = chunkArray(osmIds, 50);
+
+    for (const chunk of chunks) {
+        // Modify the SPARQL query to handle multiple OSM IDs
+        const sparqlQuery = `
+            SELECT ?item ?osmId WHERE {
+                ?item wdt:P402 ?osmId .
+                VALUES ?osmId { "${chunk.join('" "')}" }
+            }`;
+
+        const url = "https://query.wikidata.org/sparql";
+
+        try {
+            const res = request('GET', url, {
+                qs: {
+                    query: sparqlQuery,
+                    format: 'json'
+                },
+                headers: {
+                    'User-Agent': 'ZeLonewolf-Wikidata-QA-Scripts/1.0 (https://github.com/ZeLonewolf/wikidata-qa)'
+                }
+            });
+            const body = JSON.parse(res.getBody('utf8'));
+
+            body.results.bindings.forEach(binding => {
+                // Extract QID from the URL
+                const qid = binding.item.value.split('/').pop();
+                const osmId = binding.osmId.value;
+
+                if (wdOSMRelReverseLink.has(osmId)) {
+                    wdOSMRelReverseLink.get(osmId).push(qid);
+                } else {
+                    wdOSMRelReverseLink.set(osmId, [qid]);
+                }
+            });
+        } catch (error) {
+            console.error(`Error querying Wikidata for chunk: ${chunk}`);
+        }
     }
 };
 
@@ -302,10 +346,11 @@ async function processCSV(results, writers, stateAbbrev, CDPs) {
     cacheWikidataClaimsAndNames(qids);
     cacheWikidataRedirects(qids);
     cacheWikidataClaimsAndNames(getClaimWDQIDsForLookup());
+    cacheWikidataToOSMIDLinks(results.map(row => row['@id']));
 
     let unfoundCDPs = [...CDPs];
-
     let rowCount = 0;
+
     for (const row of results) {
 
         if(!isNullOrEmpty(row['name:en'])) {
@@ -318,9 +363,12 @@ async function processCSV(results, writers, stateAbbrev, CDPs) {
             unfoundCDPs = unfoundCDPs.filter(item => item !== row['name']);
         }
 
-        const P402_reverse_array = queryWikidataForOSMID(row['@id']);
-        const qids = P402_reverse_array.map(itemUrl => itemUrl.substring(itemUrl.lastIndexOf('/') + 1));
-        row['P402_reverse'] = qids.join(', ');
+        // const P402_reverse_array = queryWikidataForOSMID(row['@id']);
+        const P402_reverse_array = wdOSMRelReverseLink.get(row['@id']); //need null check?
+        // const qids = P402_reverse_array.map(itemUrl => itemUrl.substring(itemUrl.lastIndexOf('/') + 1));
+        if(P402_reverse_array) {
+            row['P402_reverse'] = P402_reverse_array.join(', ');
+        }
 
         let processedRow;
 
