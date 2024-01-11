@@ -334,7 +334,11 @@ async function processCSV(results, writers, stateAbbrev, CDPs) {
         }
 
         if(row['boundary'] == 'census') {
-            unfoundCDPs = unfoundCDPs.filter(item => item !== row['name']);
+            //Remove this boundary from un-found list (allows for duplicate names)
+            let index = unfoundCDPs.findIndex(item => item === row['name']);
+            if (index !== -1) {
+                unfoundCDPs.splice(index, 1);
+            }
         }
 
         const P402_reverse_array = wdOSMRelReverseLink.get(row['@id']); //need null check?
