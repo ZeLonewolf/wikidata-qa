@@ -37,7 +37,8 @@ function convertCsvToHtml(csvFilePath) {
                 let html = '<html><body>';
                 html += `Updated on <b>${new Date()}</b><br />`;
                 html += `<a href="https://github.com/ZeLonewolf/wikidata-qa">Source code on GitHub</a><br />`;
-                html += `<a href="https://overpass-turbo.eu/s/1FPP">Map view (overpass)</a><br />`;
+                html += `<a href="https://overpass-turbo.eu/s/1FPP">border_type Map view (overpass)</a><br />`;
+                html += `<a href="https://overpass-turbo.eu/s/1FPV">admin_level Map view (overpass)</a><br />`;
                 html += `Findings: <b>${rows.length -1}</b><br />`;
                 html += '<table border="1">';
 
