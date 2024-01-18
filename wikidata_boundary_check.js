@@ -368,6 +368,9 @@ async function processCSV(results, writers, stateAbbrev, CDPs) {
             flags.push("Boundary tagging on closed way instead of relation");
         }
 
+        if(isNullOrEmpty(processedRow.boundary)) {
+            flags.push("Missing boundary=* tag");
+        }
         if(isNullOrEmpty(processedRow.name)) {
             flags.push("Missing name");
         }
