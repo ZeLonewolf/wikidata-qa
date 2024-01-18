@@ -63,6 +63,8 @@ function convertCsvToHtml(csvFilePath) {
                         }
                         // Link OSM relations
                         value = value.replace(/r(\d+)/g, '<a href="https://openstreetmap.org/relation/$1">r$1</a>');
+                        // Link OSM ways
+                        value = value.replace(/w(\d+)/g, '<a href="https://openstreetmap.org/way/$1">w$1</a>');
                         // Link Wikidata items
                         value = value.replace(/Q(\d+)/g, '<a href="https://www.wikidata.org/wiki/Q$1">Q$1</a>');
                         html += `<td>${value}</td>`;

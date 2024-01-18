@@ -359,9 +359,18 @@ async function processCSV(results, writers, stateAbbrev, CDPs) {
         } else {
             processedRow = { ...row, P131: '', P131_name: '', wikidata_name: '', P402: '', P31: '', P31_name: '' };
         }
+        console.log(processedRow[`@type`]);
+        if(processedRow[`@type`] == "relation") {
+            processedRow['@id'] = `r${processedRow['@id']}`;
+        }
+        if(processedRow[`@type`] == "way") {
+            processedRow['@id'] = `w${processedRow['@id']}`;
+            flags.push("Boundary tagging on closed way instead of relation");
+        }
 
-        processedRow['@id'] = `r${processedRow['@id']}`; 
-
+        if(isNullOrEmpty(processedRow.name)) {
+            flags.push("Missing name");
+        }
         if(isNullOrEmpty(processedRow.wikidata)) {
             flags.push("Missing wikidata");
             if(!isNullOrEmpty(processedRow.P402_reverse)) {
