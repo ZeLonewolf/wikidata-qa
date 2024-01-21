@@ -387,7 +387,13 @@ async function processCSV(results, writers, stateAbbrev, CDPs) {
                 flags.push(`OSM wikidata ${processedRow.wikidata} redirects to ${wdRedirect}`);
             }
 
-            if(simplifyWDName(expandAbbreviations(processedRow.wikidata_name)) != expandAbbreviations(processedRow.name)) {
+            if(
+                !matchStringsIgnoringDiacritics(
+                    simplifyWDName(expandAbbreviations(processedRow.wikidata_name)),
+                    expandAbbreviations(processedRow.name)
+                )
+            ) 
+            {
                 flags.push("Wikidata name mismatch");
             }
             if(isNullOrEmpty(processedRow.P402)) {
@@ -487,6 +493,20 @@ function checkWikipediaMatch(qid, rawWikipediaTitle) {
     } else {
         return `${qid} has no wikipedia entry but OSM has ${wikipediaTitle}`;
     }
+}
+
+function matchStringsIgnoringDiacritics(str1, str2) {
+    // Normalize strings to NFD Unicode form
+    const normalizedStr1 = str1.normalize("NFD");
+    const normalizedStr2 = str2.normalize("NFD");
+
+    // Use regex to remove diacritic marks (combining characters)
+    const regex = /[\u0300-\u036f]/g;
+    const cleanStr1 = normalizedStr1.replace(regex, "");
+    const cleanStr2 = normalizedStr2.replace(regex, "");
+
+    // Compare cleaned strings
+    return cleanStr1 === cleanStr2;
 }
 
 module.exports = { boundaryCheck }
