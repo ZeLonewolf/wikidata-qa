@@ -7,7 +7,7 @@ async function saveBoundariesWithinToCSV(osmRelationID) {
     console.log(`Query overpass for boundaries within r${osmRelationID}`);
     const overpassUrl = 'http://overpass-api.de/api/interpreter';
     const relationid = Number(osmRelationID) + 3600000000;
-    const query = `[timeout:180][out:csv(::id,::type,type,wikidata,wikipedia,admin_level,boundary,name,"name:en";true;',')];
+    const query = `[timeout:180][out:csv(::id,::type,type,wikidata,wikipedia,admin_level,boundary,name,"name:en",fixme;true;',')];
         area(id:${relationid})->.a;
         (
           rel[boundary=administrative][admin_level~"^7|8|9$"](area.a);
