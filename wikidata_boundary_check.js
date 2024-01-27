@@ -292,6 +292,9 @@ function getClaimWDQIDsForLookup() {
     const distinctQIDs = new Set();
 
     for (const claims of wdClaimsCache.values()) {
+        if(claims === undefined) {
+            continue;
+        }
         const P31Claims = claims.P31 || [];
         for (const claim of P31Claims) {
             const claimValue = claim.mainsnak.datavalue.value.id;
