@@ -49,6 +49,12 @@ jobs:
         name: output-${{ matrix.state }}
         path: ./output
 
+  index:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Build index
+      run: node ./findingsindex.js
+    
   combine:
     needs: build
     runs-on: ubuntu-latest

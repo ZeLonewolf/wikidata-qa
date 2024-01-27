@@ -1,7 +1,9 @@
+const { getStateName } = require('./state_abbreviation');
 const fs = require('fs');
+const path = require('path');
 
 // Function to generate the HTML content
-function generateHTML(states) {
+function generateHTML(stateData) {
   let htmlContent = `
   <!DOCTYPE html>
   <html lang="en">
@@ -15,20 +17,26 @@ function generateHTML(states) {
       <ul>
   `;
 
-  states.forEach(state => {
-    // Replace spaces with underscores for file names
-    let stateFileName = state.replace(/ /g, '_');
-    htmlContent += `
-      <li>
-        ${state} flagged issues
-        (<a href="${stateFileName}_flagged.csv">CSV</a>, 
-        <a href="${stateFileName}_flagged.html">HTML</a>) 
-        all boundaries
-        (<a href="${stateFileName}.csv">CSV</a>, 
-        <a href="${stateFileName}.html">HTML</a>) 
-      </li>
-    `;
-  });
+  for (const stateAbbrev in stateData) {
+    if (stateData.hasOwnProperty(stateAbbrev)) {
+      const findings = stateData[stateAbbrev];
+      const stateName = getStateName(stateAbbrev)
+      console.log(stateAbbrev);
+
+      // Replace spaces with underscores for file names
+      let stateFileName = stateName.replace(/ /g, '_');
+      htmlContent += `
+        <li>
+          ${stateName} <b>${findings}</b> flagged issues
+          (<a href="${stateFileName}_flagged.csv">CSV</a>, 
+          <a href="${stateFileName}_flagged.html">HTML</a>) 
+          all boundaries
+          (<a href="${stateFileName}.csv">CSV</a>, 
+          <a href="${stateFileName}.html">HTML</a>) 
+        </li>
+      `;
+    }
+  }
 
   htmlContent += `
       </ul>
@@ -37,7 +45,7 @@ function generateHTML(states) {
 
 
   // Generate and write the HTML file
-  fs.writeFile('output/index.html', htmlContent, (err) => {
+  fs.writeFileSync('output/index.html', htmlContent, (err) => {
     if (err) throw err;
     console.log('output/index.html has been created!');
   });

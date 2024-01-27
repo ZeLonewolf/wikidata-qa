@@ -281,7 +281,7 @@ async function boundaryCheck(inputCSV, outputCSV, stateAbbrev, CDPs) {
         skip_empty_lines: true
     });
 
-    await processCSV(results, writers, stateAbbrev, CDPs);
+    return await processCSV(results, writers, stateAbbrev, CDPs);
 }
 
 function simplifyWDName(text) {
@@ -328,6 +328,8 @@ async function processCSV(results, writers, stateAbbrev, CDPs) {
     let unfoundCDPs = [...CDPs];
     let rowCount = 0;
 
+    const flags = [];
+
     for (const row of results) {
 
         if(!isNullOrEmpty(row['name:en'])) {
@@ -350,8 +352,6 @@ async function processCSV(results, writers, stateAbbrev, CDPs) {
         }
 
         let processedRow;
-
-        const flags = [];
 
         if (row.wikidata) { // Make sure this matches your CSV column name
             const { P131, P131_name, wikidata_name, P402, P402_count, P31, P31_name } = fetchData(row.wikidata);
@@ -467,6 +467,8 @@ async function processCSV(results, writers, stateAbbrev, CDPs) {
         await writers.P402Writer.writeRecords(quickStatementsP402)
             .then(() => console.log('The P402 CSV file was written successfully'));
     }
+
+    return flags.length + unfoundCDPs.length;
 }
 
 // Function to check if the Wikipedia link matches
