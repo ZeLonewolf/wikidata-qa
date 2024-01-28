@@ -328,9 +328,9 @@ async function processCSV(results, writers, stateAbbrev, CDPs) {
     let unfoundCDPs = [...CDPs];
     let rowCount = 0;
 
-    const flags = [];
-
     for (const row of results) {
+
+        const flags = [];
 
         if(!isNullOrEmpty(row['name:en'])) {
             //Let English name override main name tag
@@ -468,7 +468,7 @@ async function processCSV(results, writers, stateAbbrev, CDPs) {
             .then(() => console.log('The P402 CSV file was written successfully'));
     }
 
-    return flags.length + unfoundCDPs.length;
+    return flaggedData.length;
 }
 
 // Function to check if the Wikipedia link matches
