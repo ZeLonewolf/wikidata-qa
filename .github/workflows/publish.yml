@@ -50,13 +50,14 @@ jobs:
         path: ./output
 
   index:
+    needs: build
     runs-on: ubuntu-latest
     steps:
     - name: Build index
       run: node ./findings_index.js
     
   combine:
-    needs: build
+    needs: index
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
