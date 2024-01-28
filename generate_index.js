@@ -12,9 +12,18 @@ function generateHTML(stateData, outputDir) {
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>Boundary Quality Assurance Checks</title>
   </head>
+  <style>
+    table {
+      border-collapse: collapse; /* Ensures that the borders between cells are shared */
+    }
+    td, th {
+      border: 1px solid black; /* Adds a 1px solid black border around each table cell */
+    }
+  </style>
   <body>
       <h1>US State Boundary Quality Assurance Checks</h1>
-      <ul>
+      <table>
+      <tr><th>State</th><th colspan="3">Flagged Issues</th>
   `;
 
   for (const stateAbbrev in stateData) {
@@ -26,20 +35,18 @@ function generateHTML(stateData, outputDir) {
       // Replace spaces with underscores for file names
       let stateFileName = stateName.replace(/ /g, '_');
       htmlContent += `
-        <li>
-          ${stateName} <b>${findings}</b> flagged issues
-          (<a href="${stateFileName}_flagged.csv">CSV</a>, 
-          <a href="${stateFileName}_flagged.html">HTML</a>) 
-          all boundaries
-          (<a href="${stateFileName}.csv">CSV</a>, 
-          <a href="${stateFileName}.html">HTML</a>) 
-        </li>
+        <tr>
+          <td>${stateName}</td>
+          <td><b>${findings}</b></td>
+          <td><a href="${stateFileName}_flagged.csv">CSV</a></td>
+          <td><a href="${stateFileName}_flagged.html">HTML</a></td>
+        </tr>
       `;
     }
   }
 
   htmlContent += `
-      </ul>
+      </table>
   </body>
   </html>`;
 
