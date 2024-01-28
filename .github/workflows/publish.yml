@@ -44,7 +44,7 @@ jobs:
       run: node ./us-wikidata_qa.js "${{ matrix.state }}" "$CENSUS_API_KEY"
 
     - name: Upload result for ${{ matrix.state }}
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: output-${{ matrix.state }}
         path: ./output
