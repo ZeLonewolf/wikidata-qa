@@ -53,7 +53,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Build index
-      run: node ./findingsindex.js
+      run: node ./findings_index.js
     
   combine:
     needs: build
