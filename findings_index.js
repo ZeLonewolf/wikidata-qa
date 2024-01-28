@@ -25,6 +25,6 @@ function loadIndexFiles(folderPath) {
   }
 }
 
-const results = loadIndexFiles("output/");
+const results = loadIndexFiles(process.argv[2]);
 console.log(results);
 generateHTML(results);

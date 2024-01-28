@@ -63,9 +63,6 @@ jobs:
     - name: Download all artifacts
       uses: actions/download-artifact@v3
 
-    - name: Build index
-      run: node ./findings_index.js
-
     - name: Create combined output directory
       run: mkdir -p combined_output
 
@@ -73,6 +70,9 @@ jobs:
       run: |
         find . -name '*.csv' -exec mv {} combined_output/ \;
         find . -name '*.html' -exec mv {} combined_output/ \;
+
+    - name: Build index
+      run: node ./findings_index.js ./combined_output
 
     - name: List files
       run: ls -lR
