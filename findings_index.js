@@ -27,4 +27,4 @@ function loadIndexFiles(folderPath) {
 
 const results = loadIndexFiles(process.argv[2]);
 console.log(results);
-generateHTML(results);
+generateHTML(results, process.argv[2]);

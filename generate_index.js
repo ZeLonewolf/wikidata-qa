@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Function to generate the HTML content
-function generateHTML(stateData) {
+function generateHTML(stateData, outputDir) {
   let htmlContent = `
   <!DOCTYPE html>
   <html lang="en">
@@ -45,9 +45,9 @@ function generateHTML(stateData) {
 
 
   // Generate and write the HTML file
-  fs.writeFileSync('output/index.html', htmlContent, (err) => {
+  fs.writeFileSync(`${outputDir}/index.html`, htmlContent, (err) => {
     if (err) throw err;
-    console.log('output/index.html has been created!');
+    console.log(`${outputDir}/index.html has been created!`);
   });
 }
 
