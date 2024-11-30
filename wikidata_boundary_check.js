@@ -397,8 +397,12 @@ async function processCSV(results, writers, stateAbbrev, CDPs) {
                 !matchStringsIgnoringDiacritics(
                     simplifyWDName(expandAbbreviations(processedRow.wikidata_name)),
                     expandAbbreviations(processedRow.name)
-                )
-            ) 
+                ) &&
+                (!processedRow.alt_name || !matchStringsIgnoringDiacritics(
+                    simplifyWDName(expandAbbreviations(processedRow.wikidata_name)), 
+                    expandAbbreviations(processedRow.alt_name)
+                ))
+            )
             {
                 flags.push("Wikidata name mismatch");
             }
