@@ -57,21 +57,28 @@ function getStateFipsCode(stateName) {
     return stateFipsCodes[stateName] || 'Unknown';
 }
 
-async function getCDPs(stateName, censusAPIKey) {
+async function getCDPs(stateName) {
   console.log(stateName);
-  console.log(censusAPIKey);
   const stateCode = await getStateFipsCode(stateName);
-  const url = `https://api.census.gov/data/2020/dec/pl?get=NAME&for=place:*&in=state:${stateCode}&key=${censusAPIKey}`;
+  const url = `https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer/2024_gaz_place_${stateCode}.txt`;
+  console.log(url);
 
   try {
     const response = await axios.get(url);
     const rawData = response.data;
 
-    // Skip the first row (headers) and filter for CDPs
-    const cdpList = rawData.slice(1)
-                          .filter(row => row[0].includes('CDP'))
-                          .map(row => row[0].replace(new RegExp(`\\sCDP.*, ${stateName}.*`), ''));
-    return cdpList; // Return the CDP list
+    console.log(rawData);
+
+    // Split into rows and process as tab-delimited
+    const rows = rawData.split('\n')
+                       .map(line => line.split('\t'));
+
+    // Skip header row and filter for CDPs
+    const cdpList = rows.slice(1)
+                       .filter(row => row[4] === '57') // CDP type is in 3rd column
+                       .map(row => row[3].replace(/ CDP$/, '')); // Place name is in 4th column, remove CDP suffix
+
+    return cdpList;
   } catch (error) {
     console.error('Error fetching data:', error);
     return []; // Return an empty array in case of an error

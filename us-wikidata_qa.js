@@ -7,7 +7,7 @@ const { getStateAbbreviation } = require('./state_abbreviation.js');
 const fs = require('fs');
 const path = require('path');
 
-async function processOneState(stateName, API_KEY) {
+async function processOneState(stateName) {
 
   let thisState;
   const states = await fetchUSStates();
@@ -19,7 +19,7 @@ async function processOneState(stateName, API_KEY) {
   }
 
   try {
-    const findings = await processState(thisState, API_KEY);
+    const findings = await processState(thisState);
     const abbrev = getStateAbbreviation(thisState.name);
 
     const fileName = `output/state-${abbrev}-findings.csv`;
@@ -39,8 +39,8 @@ async function processOneState(stateName, API_KEY) {
   }
 }
 
-async function processState(state, API_KEY) {
-    const CDPs = await getCDPs(state.name, API_KEY);
+async function processState(state) {
+    const CDPs = await getCDPs(state.name);
     const stateName = state.name.replace(/\s/g, '_');
     const stateFile = `output/${stateName}.csv`;
     const stateFlaggedFile = `output/${stateName}_flagged.csv`;
@@ -62,4 +62,4 @@ fs.mkdir(outputFolderPath, { recursive: true }, (error) => {
     }
 });
 
-processOneState(process.argv[2], process.argv[3]);
+processOneState(process.argv[2]);
