@@ -41,7 +41,7 @@ jobs:
     - name: Run checks for ${{ matrix.state }}
       env:
         API_KEY: ${{ secrets.CENSUS_API_KEY }}
-      run: node ./us-wikidata_qa.js "${{ matrix.state }}" "$CENSUS_API_KEY"
+      run: node ./us-wikidata_qa.js "${{ matrix.state }}"
 
     - name: Upload result for ${{ matrix.state }}
       uses: actions/upload-artifact@v4
