@@ -22,15 +22,20 @@ csvHeader = [
         { id: 'flags', title: 'flags' }
     ];
 
-function expandAbbreviations(text) {
-    if(isNullOrEmpty(text)) {
-        return text;
+function expandAbbreviations(texts) {
+    if (!Array.isArray(texts)) {
+        return [];
     }
     const abbreviations = {
             "St.": "Saint",
             //Add other cases here
     };
-    return text.replace(new RegExp(Object.keys(abbreviations).join("|"), 'g'), matched => abbreviations[matched]);
+    return texts.map(text => {
+        if (isNullOrEmpty(text)) {
+            return text;
+        }
+        return text.replace(new RegExp(Object.keys(abbreviations).join("|"), 'g'), matched => abbreviations[matched]);
+    });
 }
 
 // Cache object
@@ -38,6 +43,7 @@ const wdCache = new Map();
 const wdClaimsCache = new Map();
 const wdRedirects = new Map();
 const wdSitelinksCache = new Map();
+const wdAliasesCache = new Map();
 const wdOSMRelReverseLink = new Map();
 const CHUNK_SIZE = 50;
 
@@ -50,7 +56,7 @@ function chunkArray(array, chunkSize) {
 }
 
 // Refactored function to handle fetching and caching of both data types
-function cacheWikidataData(qids, cacheClaimsFunction, cacheNamesFunction, cacheSitelinksFunction) {
+function cacheWikidataData(qids, cacheClaimsFunction, cacheNamesFunction, cacheSitelinksFunction, cacheAliasesFunction) {
     const chunkedQids = chunkArray(qids, CHUNK_SIZE);
 
     chunkedQids.forEach(chunk => {
@@ -59,7 +65,7 @@ function cacheWikidataData(qids, cacheClaimsFunction, cacheNamesFunction, cacheS
                 qs: {
                     action: 'wbgetentities',
                     ids: chunk.join('|'),
-                    props: 'claims|labels|sitelinks',
+                    props: 'claims|labels|sitelinks|aliases',
                     languages: 'en', // Only necessary for labels
                     format: 'json'
                 }
@@ -81,6 +87,10 @@ function cacheWikidataData(qids, cacheClaimsFunction, cacheNamesFunction, cacheS
                         const sitelinks = data.entities[qid].sitelinks;
                         cacheSitelinksFunction(qid, sitelinks);
                     }
+                    if (cacheAliasesFunction) {
+                        const aliases = data.entities[qid].aliases;
+                        cacheAliasesFunction(qid, aliases);
+                    }
                 } catch (error) {
                     console.log(`Error fetching data for QID [${qid}]:`);
                 }
@@ -98,19 +108,25 @@ function cacheWikidataClaimsAndNames(qids) {
     cacheWikidataData(qids, 
         (qid, claims) => wdClaimsCache.set(qid, claims), 
         (qid, label) => wdCache.set(qid, label),
-        (qid, sitelinks) => wdSitelinksCache.set(qid, sitelinks));
+        (qid, sitelinks) => wdSitelinksCache.set(qid, sitelinks),
+        (qid, aliases) => wdAliasesCache.set(qid, aliases)
+    );
 }
 
-function getNameFromWikidata (qid) {
+function getNamesFromWikidata (qid) {
     if(isNullOrEmpty(qid)) {
         return "";
     } 
     // Check if the result is in the cache
     if (wdCache.has(qid)) {
-        return wdCache.get(qid);
+        const mainName = wdCache.get(qid);
+        const aliasArray = wdAliasesCache.get(qid)?.en?.map(a => a.value.split(',')[0]) || [];
+        // Create set with main name and aliases, then convert back to array
+        const uniqueNames = new Set([mainName, ...aliasArray]);
+        return Array.from(uniqueNames);
     }
     console.log(`Error! Cache miss: ${qid}`);
-    return '';
+    return [];
 };
 
 function cacheWikidataToOSMIDLinks(osmIds) {
@@ -219,9 +235,8 @@ function fetchData(qid) {
         }
         const P31 = P31Values.join('; ');
 
-        // Fetch names for each P31 value
-        const P31Names = P31Values.map(value => getNameFromWikidata(value));
-        const P31_name = P31Names.join('; ');
+        // Fetch first name for each P31Values value
+        const P31_name = P31Values.map(id => getNamesFromWikidata(id)[0]).join('; ');
 
         const P131 = claims.P131?.[0]?.mainsnak?.datavalue?.value?.id || '';
         let P402 = claims.P402?.[0]?.mainsnak?.datavalue?.value || '';
@@ -229,13 +244,13 @@ function fetchData(qid) {
             P402 = `r${P402}`;
         }
         const P402_count = claims.P402?.length;
-        const P131_name = getNameFromWikidata(P131);
-        const wikidata_name = getNameFromWikidata(qid);
+        const P131_name = getNamesFromWikidata(P131)[0];
+        const wikidata_names = getNamesFromWikidata(qid);
 
-        return { P131, P131_name, wikidata_name, P402, P402_count, P31, P31_name };
+        return { P131, P131_name, wikidata_names, P402, P402_count, P31, P31_name };
     } catch (error) {
         console.error(`Error fetching data for QID ${qid}:`, error);
-        return { P131: '', P131_name: '', wikidata_name: '', P402: '', P402_count: '', P31: '', P31_name: '' };
+        return { P131: '', P131_name: '', wikidata_names: [], P402: '', P402_count: '', P31: '', P31_name: '' };
     }
 };
 
@@ -284,8 +299,11 @@ async function boundaryCheck(inputCSV, outputCSV, stateAbbrev, CDPs) {
     return await processCSV(results, writers, stateAbbrev, CDPs);
 }
 
-function simplifyWDName(text) {
-    return text.split(',')[0];
+function simplifyWDNames(names) {
+    if (!Array.isArray(names)) {
+        return [];
+    }
+    return names.map(name => name.split(',')[0]);
 }
 
 function getClaimWDQIDsForLookup() {
@@ -354,14 +372,16 @@ async function processCSV(results, writers, stateAbbrev, CDPs) {
         let processedRow;
 
         if (row.wikidata) { // Make sure this matches your CSV column name
-            const { P131, P131_name, wikidata_name, P402, P402_count, P31, P31_name } = fetchData(row.wikidata);
+            const { P131, P131_name, wikidata_names, P402, P402_count, P31, P31_name } = fetchData(row.wikidata);
             if(P402_count > 1) {
                 flags.push(`Wikidata item points to ${P402_count} different OSM relations`);
             }
-            processedRow = { ...row, P131, P131_name, wikidata_name, P402, P31, P31_name };
+            processedRow = { ...row, P131, P131_name, wikidata_names, P402, P31, P31_name };
         } else {
-            processedRow = { ...row, P131: '', P131_name: '', wikidata_name: '', P402: '', P31: '', P31_name: '' };
+            processedRow = { ...row, P131: '', P131_name: '', wikidata_names: [], P402: '', P31: '', P31_name: '' };
         }
+
+        processedRow.wikidata_name = processedRow.wikidata_names.join(';');
 
         if(processedRow[`@type`] == "relation") {
             processedRow['@id'] = `r${processedRow['@id']}`;
@@ -395,13 +415,9 @@ async function processCSV(results, writers, stateAbbrev, CDPs) {
 
             if(
                 !matchStringsIgnoringDiacritics(
-                    simplifyWDName(expandAbbreviations(processedRow.wikidata_name)),
-                    expandAbbreviations(processedRow.name)
-                ) &&
-                (!processedRow.alt_name || !matchStringsIgnoringDiacritics(
-                    simplifyWDName(expandAbbreviations(processedRow.wikidata_name)), 
-                    expandAbbreviations(processedRow.alt_name)
-                ))
+                    simplifyWDNames(expandAbbreviations(processedRow.wikidata_names)),
+                    expandAbbreviations([processedRow.name, processedRow.alt_name])
+                )
             )
             {
                 flags.push("Wikidata name mismatch");
@@ -507,18 +523,30 @@ function checkWikipediaMatch(qid, rawWikipediaTitle) {
     }
 }
 
-function matchStringsIgnoringDiacritics(str1, str2) {
-    // Normalize strings to NFD Unicode form
-    const normalizedStr1 = str1.normalize("NFD");
-    const normalizedStr2 = str2.normalize("NFD");
+function matchStringsIgnoringDiacritics(arr1, arr2) {
+    if (!Array.isArray(arr1) || !Array.isArray(arr2)) {
+        return false;
+    }
 
     // Use regex to remove diacritic marks (combining characters)
     const regex = /[\u0300-\u036f]/g;
-    const cleanStr1 = normalizedStr1.replace(regex, "");
-    const cleanStr2 = normalizedStr2.replace(regex, "");
 
-    // Compare cleaned strings
-    return cleanStr1 === cleanStr2;
+    // Clean and normalize each string in first array
+    const cleanArr1 = arr1.map(str => {
+        if (!str) return '';
+        return str.normalize("NFD").replace(regex, "");
+    });
+
+    // Clean and normalize each string in second array
+    const cleanArr2 = arr2.map(str => {
+        if (!str) return '';
+        return str.normalize("NFD").replace(regex, "");
+    });
+
+    // Check if any strings match between the arrays
+    return cleanArr1.some(str1 => 
+        cleanArr2.some(str2 => str1 === str2)
+    );
 }
 
 module.exports = { boundaryCheck }
