@@ -48,8 +48,8 @@ async function processState(state) {
     await saveBoundariesWithinToCSV(state.osmRelationId);
     const flaggedFindings = await boundaryCheck(`output/${state.osmRelationId}.csv`, stateFile, getStateAbbreviation(state.name), CDPs);    
     console.log(`Boundary check complete for ${state.name}, OSM Relation ID: ${state.osmRelationId}`);
-    convertCsvToHtml(stateFile);
-    convertCsvToHtml(stateFlaggedFile);
+    convertCsvToHtml(stateFile, state.name);
+    convertCsvToHtml(stateFlaggedFile, state.name);
     console.log(`HTML generation complete for ${state.name}, OSM Relation ID: ${state.osmRelationId}`);
     return flaggedFindings;
 }

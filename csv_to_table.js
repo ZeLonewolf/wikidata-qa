@@ -2,7 +2,7 @@ const fs = require('fs');
 const Papa = require('papaparse');
 const path = require('path');
 
-function convertCsvToHtml(csvFilePath) {
+function convertCsvToHtml(csvFilePath, stateName) {
 
     // Check if the file path is valid
     if (!fs.existsSync(csvFilePath)) {
@@ -34,13 +34,16 @@ function convertCsvToHtml(csvFilePath) {
                     return;
                 }
 
-                let html = '<html><body>';
-                html += `Updated on <b>${new Date()}</b><br />`;
-                html += `<a href="https://github.com/ZeLonewolf/wikidata-qa">Source code on GitHub</a><br />`;
-                html += `<a href="https://overpass-turbo.eu/s/1JzB">border_type Map view (overpass)</a><br />`;
-                html += `<a href="https://overpass-turbo.eu/s/1FPV">admin_level Map view (overpass)</a><br />`;
-                html += `Findings: <b>${rows.length -1}</b><br />`;
-                html += '<table border="1">';
+                let html = `
+                    <html><body>
+                    Updated on <b>${new Date()}</b><br />
+                    <a href="https://github.com/ZeLonewolf/wikidata-qa">Source code on GitHub</a><br />
+                    <a href="https://overpass-turbo.eu/s/1JzB">border_type Map view (overpass)</a><br />
+                    <a href="https://overpass-turbo.eu/s/1FPV">admin_level Map view (overpass)</a><br />
+                    <a href="${stateName.replace(" ", "_")}_P402_entry.csv.txt">P402 Entries</a> for <a href="https://quickstatements.toolforge.org/#/batch">quickstatements</a><br />
+                    Findings: <b>${rows.length -1}</b><br />
+                    <table border="1">
+                `;
 
                 // Generate table headers
                 html += '<tr>';

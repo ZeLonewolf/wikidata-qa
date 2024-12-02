@@ -261,7 +261,7 @@ function isNullOrEmpty(value) {
 async function boundaryCheck(inputCSV, outputCSV, stateAbbrev, CDPs) {
 
     const outputIssuesCSV = outputCSV.replace('.csv', '_flagged.csv');
-    const outputP402CSV = outputCSV.replace('.csv', '_P402_entry.csv');
+    const outputP402CSV = outputCSV.replace('.csv', '_P402_entry.csv.txt');
 
     const csvWriter = createObjectCsvWriter({
         path: outputCSV,
