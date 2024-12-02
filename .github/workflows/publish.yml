@@ -71,6 +71,7 @@ jobs:
     - name: Move all files to combined output directory
       run: |
         find . -name '*.csv' -exec mv {} combined_output/ \;
+        find . -name '*.csv.txt' -exec mv {} combined_output/ \;
         find . -name '*.html' -exec mv {} combined_output/ \;
 
     - name: Build index
