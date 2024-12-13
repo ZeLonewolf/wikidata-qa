@@ -258,7 +258,9 @@ function isNullOrEmpty(value) {
     return value === null || value === undefined || value === '';
 }
 
-async function boundaryCheck(inputCSV, outputCSV, stateAbbrev, CDPs) {
+async function boundaryCheck(inputCSV, outputCSV, stateAbbrev, CDPs, citiesAndTowns) {
+
+    const citiesAndTownsNames = citiesAndTowns.map(entry => entry.cityLabel.value);
 
     const outputIssuesCSV = outputCSV.replace('.csv', '_flagged.csv');
     const outputP402CSV = outputCSV.replace('.csv', '_P402_entry.csv.txt');
@@ -296,7 +298,7 @@ async function boundaryCheck(inputCSV, outputCSV, stateAbbrev, CDPs) {
         skip_empty_lines: true
     });
 
-    return await processCSV(results, writers, stateAbbrev, CDPs);
+    return await processCSV(results, writers, stateAbbrev, CDPs, citiesAndTownsNames);
 }
 
 function simplifyWDNames(names) {
@@ -327,7 +329,7 @@ function getClaimWDQIDsForLookup() {
     return Array.from(distinctQIDs);
 }
 
-async function processCSV(results, writers, stateAbbrev, CDPs) {
+async function processCSV(results, writers, stateAbbrev, CDPs, citiesAndTownsNames) {
 
     const processedData = [];
     const flaggedData = [];
@@ -439,6 +441,9 @@ async function processCSV(results, writers, stateAbbrev, CDPs) {
             }
             if (!CDP_QID.some(qid => processedRow.P31.includes(qid)) && processedRow.boundary == "census") {
                 flags.push("OSM says CDP but wikidata is missing CDP statement");
+            }
+            if (processedRow.boundary == "administrative" && !citiesAndTownsNames.includes(processedRow.name)) {
+                flags.push(`OSM boundary=administrative ${processedRow.name} is not on the Wikidata list of cities and towns in ${stateAbbrev.toUpperCase()}`);
             }
             if(processedRow.boundary == "census" && !CDPs.includes(processedRow.name)) {
                 flags.push(`OSM boundary=census ${processedRow.name} is not on the census bureau <a href="https://tigerweb.geo.census.gov/tigerwebmain/Files/tab20/tigerweb_tab20_cdp_2020_${stateAbbrev}.html">list</a> of CDPs`);

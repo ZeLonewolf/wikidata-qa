@@ -4,6 +4,8 @@ const { boundaryCheck } = require("./wikidata_boundary_check.js");
 const { getCDPs } = require ("./census_bureau.js");
 const { saveBoundariesWithinToCSV } = require('./bounds_to_csv.js');
 const { getStateAbbreviation } = require('./state_abbreviation.js');
+const { getCitiesAndTownsInStateRelation } = require('./wikidata_query_service.js');
+const { saveCitiesAndTownsToHTML } = require('./html_writer.js');
 const fs = require('fs');
 const path = require('path');
 
@@ -41,12 +43,14 @@ async function processOneState(stateName) {
 
 async function processState(state) {
     const CDPs = await getCDPs(state.name);
+    const citiesAndTowns = await getCitiesAndTownsInStateRelation(state.osmRelationId);
     const stateName = state.name.replace(/\s/g, '_');
     const stateFile = `output/${stateName}.csv`;
     const stateFlaggedFile = `output/${stateName}_flagged.csv`;
     console.log(`State: ${stateName}, OSM Relation ID: ${state.osmRelationId}`);
     await saveBoundariesWithinToCSV(state.osmRelationId);
-    const flaggedFindings = await boundaryCheck(`output/${state.osmRelationId}.csv`, stateFile, getStateAbbreviation(state.name), CDPs);    
+    await saveCitiesAndTownsToHTML(citiesAndTowns, state.name);
+    const flaggedFindings = await boundaryCheck(`output/${state.osmRelationId}.csv`, stateFile, getStateAbbreviation(state.name), CDPs, citiesAndTowns);    
     console.log(`Boundary check complete for ${state.name}, OSM Relation ID: ${state.osmRelationId}`);
     convertCsvToHtml(stateFile, state.name);
     convertCsvToHtml(stateFlaggedFile, state.name);
