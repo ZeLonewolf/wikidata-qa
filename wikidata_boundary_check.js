@@ -258,7 +258,9 @@ function isNullOrEmpty(value) {
     return value === null || value === undefined || value === '';
 }
 
-async function boundaryCheck(inputCSV, outputCSV, stateAbbrev, CDPs) {
+async function boundaryCheck(inputCSV, outputCSV, stateAbbrev, CDPs, citiesAndTowns) {
+
+    const citiesAndTownsNames = citiesAndTowns.map(entry => entry.cityLabel.value);
 
     const outputIssuesCSV = outputCSV.replace('.csv', '_flagged.csv');
     const outputP402CSV = outputCSV.replace('.csv', '_P402_entry.csv.txt');

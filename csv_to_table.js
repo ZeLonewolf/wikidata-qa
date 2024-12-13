@@ -41,6 +41,7 @@ function convertCsvToHtml(csvFilePath, stateName) {
                     <a href="https://overpass-turbo.eu/s/1JzB">border_type Map view (overpass)</a><br />
                     <a href="https://overpass-turbo.eu/s/1FPV">admin_level Map view (overpass)</a><br />
                     <a href="${stateName.replace(" ", "_")}_P402_entry.csv.txt">P402 Entries</a> for <a href="https://quickstatements.toolforge.org/#/batch">quickstatements</a><br />
+                    <a href="${stateName.replace(" ", "_")}_citiesAndTowns.html">${stateName} city/town list</a><br />
                     Findings: <b>${rows.length -1}</b><br />
                     <table border="1">
                 `;
