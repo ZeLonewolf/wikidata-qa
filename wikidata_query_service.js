@@ -25,7 +25,7 @@ function getCitiesAndTownsInStateQuery(qid) {
         # Exclude other types of districts
         FILTER NOT EXISTS {
             ?city wdt:P31/wdt:P279* ?excludedClass.
-            VALUES ?excludedClass { wd:Q610237 wd:Q104146 wd:Q5398059 }
+            VALUES ?excludedClass { wd:Q610237 wd:Q104146790 wd:Q5398059 wd:Q35080211 }
         }
 
         # Exclude counties or county equivalents, but allow consolidated city-counties
