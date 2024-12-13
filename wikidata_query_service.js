@@ -18,15 +18,18 @@ async function getStateQID(relationId) {
 function getCitiesAndTownsInStateQuery(qid) {
 
     return `SELECT ?city ?cityLabel WHERE {
-        # Ensure the entity is a city or any of its subclasses
-        {
-            ?city wdt:P31/wdt:P279* wd:Q15284.
+        # Ensure the entity is a admin entity or any of its subclasses
+        VALUES ?cityClass { wd:Q852446 }
+        ?city wdt:P31/wdt:P279* ?cityClass.       
+    
+        # Exclude counties or county equivalents, but allow consolidated city-counties
+        FILTER NOT EXISTS {
+            ?city wdt:P31/wdt:P279* wd:Q13360155.
+            FILTER NOT EXISTS {
+                ?city wdt:P31/wdt:P279* wd:Q3301053.
+            }
         }
-        UNION
-        {
-            ?city wdt:P31/wdt:P279* wd:Q852446.
-        }
-        
+
         # Traverse up to 3 levels of administrative divisions to ensure the city is within this state
         {
             # Level 1: Directly located in this state
