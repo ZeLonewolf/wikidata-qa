@@ -22,17 +22,18 @@ function getCitiesAndTownsInStateQuery(qid) {
         VALUES ?cityClass { wd:Q852446 }
         ?city wdt:P31/wdt:P279* ?cityClass.       
     
+        # Exclude other types of districts
+        FILTER NOT EXISTS {
+            ?city wdt:P31/wdt:P279* ?excludedClass.
+            VALUES ?excludedClass { wd:Q610237 wd:Q104146 wd:Q5398059 }
+        }
+
         # Exclude counties or county equivalents, but allow consolidated city-counties
         FILTER NOT EXISTS {
             ?city wdt:P31/wdt:P279* wd:Q13360155.
             FILTER NOT EXISTS {
                 ?city wdt:P31/wdt:P279* wd:Q3301053.
             }
-        }
-
-        # Exclude special-purpose districts or their subclasses
-        FILTER NOT EXISTS {
-            ?city wdt:P31/wdt:P279* wd:Q610237.
         }
         
         # Traverse up to 3 levels of administrative divisions to ensure the city is within this state
