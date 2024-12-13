@@ -19,7 +19,13 @@ function getCitiesAndTownsInStateQuery(qid) {
 
     return `SELECT ?city ?cityLabel WHERE {
         # Ensure the entity is a city or any of its subclasses
-        ?city wdt:P31/wdt:P279* wd:Q15284.
+        {
+            ?city wdt:P31/wdt:P279* wd:Q15284.
+        }
+        UNION
+        {
+            ?city wdt:P31/wdt:P279* wd:Q852446.
+        }
         
         # Traverse up to 3 levels of administrative divisions to ensure the city is within this state
         {
