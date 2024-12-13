@@ -30,11 +30,16 @@ function getCitiesAndTownsInStateQuery(qid) {
             }
         }
 
+        # Exclude special-purpose districts or their subclasses
+        FILTER NOT EXISTS {
+            ?city wdt:P31/wdt:P279* wd:Q610237.
+        }
+        
         # Traverse up to 3 levels of administrative divisions to ensure the city is within this state
         ?city (wdt:P131
               | wdt:P131/wdt:P131
               | wdt:P131/wdt:P131/wdt:P131
-              | wdt:P131/wdt:P131/wdt:P131/wdt:P131) wd:Q1428.
+              | wdt:P131/wdt:P131/wdt:P131/wdt:P131) wd:${qid}.
 
         # Retrieve labels in the preferred language
         SERVICE wikibase:label { 
