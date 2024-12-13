@@ -17,7 +17,7 @@ async function getStateQID(relationId) {
 
 function getCitiesAndTownsInStateQuery(qid) {
 
-    return `SELECT ?city ?cityLabel WHERE {
+    return `SELECT DISTINCT ?city ?cityLabel WHERE {
         # Ensure the entity is a admin entity or any of its subclasses
         VALUES ?cityClass { wd:Q852446 }
         ?city wdt:P31/wdt:P279* ?cityClass.       
@@ -31,25 +31,10 @@ function getCitiesAndTownsInStateQuery(qid) {
         }
 
         # Traverse up to 3 levels of administrative divisions to ensure the city is within this state
-        {
-            # Level 1: Directly located in this state
-            ?city wdt:P131 wd:${qid}.
-        }
-        UNION
-        {
-            # Level 2: Located in an administrative entity that is in this state
-            ?city wdt:P131/wdt:P131 wd:${qid}.
-        }
-        UNION
-        {
-            # Level 3: Located in an administrative entity that is in another administrative entity, which is in this state
-            ?city wdt:P131/wdt:P131/wdt:P131 wd:${qid}.
-        }
-        UNION
-        {
-            # Level 4: Located in an administrative entity that is in another administrative entity, which is in this state
-            ?city wdt:P131/wdt:P131/wdt:P131/wdt:P131 wd:${qid}.
-        }
+        ?city (wdt:P131
+              | wdt:P131/wdt:P131
+              | wdt:P131/wdt:P131/wdt:P131
+              | wdt:P131/wdt:P131/wdt:P131/wdt:P131) wd:Q1428.
 
         # Retrieve labels in the preferred language
         SERVICE wikibase:label { 
