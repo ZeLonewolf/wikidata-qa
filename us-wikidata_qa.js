@@ -14,11 +14,9 @@ async function processOneState(stateName) {
 
   let thisState;
   const states = await fetchUSStates();
-  for (const state of states) {
-    // It's a hack deal with it.
-    if(state.name === stateName) {
-      thisState = state;
-    }
+  thisState = states.find(state => state.name === stateName);
+  if (!thisState) {
+    throw new Error(`Could not find state with name: ${stateName}`);
   }
 
   thisState.fipsCode = getStateFipsCode(thisState.name);
