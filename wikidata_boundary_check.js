@@ -258,7 +258,7 @@ function isNullOrEmpty(value) {
     return value === null || value === undefined || value === '';
 }
 
-async function boundaryCheck(inputCSV, outputCSV, stateAbbrev, CDPs, citiesAndTowns) {
+async function boundaryCheck(inputCSV, outputCSV, state, CDPs, citiesAndTowns) {
 
     const citiesAndTownsNames = citiesAndTowns.map(entry => entry.cityLabel.value);
 
@@ -298,7 +298,7 @@ async function boundaryCheck(inputCSV, outputCSV, stateAbbrev, CDPs, citiesAndTo
         skip_empty_lines: true
     });
 
-    return await processCSV(results, writers, stateAbbrev, CDPs, citiesAndTownsNames);
+    return await processCSV(results, writers, state, CDPs, citiesAndTownsNames);
 }
 
 function simplifyWDNames(names) {
@@ -329,7 +329,7 @@ function getClaimWDQIDsForLookup() {
     return Array.from(distinctQIDs);
 }
 
-async function processCSV(results, writers, stateAbbrev, CDPs, citiesAndTownsNames) {
+async function processCSV(results, writers, state, CDPs, citiesAndTownsNames) {
 
     const processedData = [];
     const flaggedData = [];
@@ -443,10 +443,10 @@ async function processCSV(results, writers, stateAbbrev, CDPs, citiesAndTownsNam
                 flags.push("OSM says CDP but wikidata is missing CDP statement");
             }
             if (processedRow.boundary == "administrative" && !citiesAndTownsNames.includes(processedRow.name)) {
-                flags.push(`OSM boundary=administrative ${processedRow.name} is not on the Wikidata list of cities and towns in ${stateAbbrev.toUpperCase()}`);
+                flags.push(`OSM boundary=administrative ${processedRow.name} is not on the Wikidata <a href="https://zelonewolf.github.io/wikidata-qa/${state.name}_citiesAndTowns.html">list</a> of cities and towns`);
             }
             if(processedRow.boundary == "census" && !CDPs.includes(processedRow.name)) {
-                flags.push(`OSM boundary=census ${processedRow.name} is not on the census bureau <a href="https://tigerweb.geo.census.gov/tigerwebmain/Files/tab20/tigerweb_tab20_cdp_2020_${stateAbbrev}.html">list</a> of CDPs`);
+                flags.push(`OSM boundary=census ${processedRow.name} is not on the census bureau <a href="https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer/2024_gaz_place_${state.fipsCode}.txt">list</a> of CDPs`);
             }
             if(!isNullOrEmpty(processedRow.admin_level) && processedRow.boundary == "census") { //CDP
                 flags.push("Census boundary should not have admin_level");
@@ -477,7 +477,7 @@ async function processCSV(results, writers, stateAbbrev, CDPs, citiesAndTownsNam
         flaggedData.push(
             {
                 name: cdp,
-                flags: [`${cdp} is missing from OSM but is listed on the Census Bureau <a href="https://tigerweb.geo.census.gov/tigerwebmain/Files/tab20/tigerweb_tab20_cdp_2020_${stateAbbrev}.html">list</a> of CDPs`]
+                flags: [`${cdp} is missing from OSM but is listed on the Census Bureau <a href="https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer/2024_gaz_place_${state.fipsCode}.txt">list</a> of CDPs`]
             }
         )    
     );
