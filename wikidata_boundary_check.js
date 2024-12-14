@@ -346,6 +346,7 @@ async function processCSV(results, writers, state, CDPs, citiesAndTownsNames) {
     cacheWikidataToOSMIDLinks(results.map(row => row['@id']));
 
     let unfoundCDPs = [...CDPs];
+    let unfoundCitiesAndTowns = [...citiesAndTownsNames];
     let rowCount = 0;
 
     for (const row of results) {
@@ -364,8 +365,14 @@ async function processCSV(results, writers, state, CDPs, citiesAndTownsNames) {
             if (index !== -1) {
                 unfoundCDPs.splice(index, 1);
             }
+        } else if(row['boundary'] == 'administrative') {
+            let index = unfoundCitiesAndTowns.findIndex(item => item === row['name']);
+            if (index !== -1) {
+                unfoundCitiesAndTowns.splice(index, 1);
+            }
         }
 
+        //Get reverse P402 link
         const P402_reverse_array = wdOSMRelReverseLink.get(row['@id']); //need null check?
         if(P402_reverse_array) {
             row['P402_reverse'] = P402_reverse_array.join(', ');
@@ -478,6 +485,15 @@ async function processCSV(results, writers, state, CDPs, citiesAndTownsNames) {
             {
                 name: cdp,
                 flags: [`${cdp} is missing from OSM but is listed on the Census Bureau <a href="https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer/2024_gaz_place_${state.fipsCode}.txt">list</a> of CDPs`]
+            }
+        )    
+    );
+
+    unfoundCitiesAndTowns.forEach(city =>
+        flaggedData.push(
+            {
+                name: city,
+                flags: [`${city} is listed in wikidata as a subclass of Q17361443 (admin. territorial entity of the US) but no boundary=administrative relation was found with this name in OSM`]
             }
         )    
     );
