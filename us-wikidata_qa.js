@@ -46,7 +46,7 @@ async function processOneState(stateName) {
 async function processState(state) {
     const CDPs = await getCDPs(state);
     const citiesAndTowns = await getCitiesAndTownsInStateRelation(state.osmRelationId);
-    const stateFile = `output/${state.urlname}.csv`;
+    const stateFile = `output/${state.urlName}.csv`;
     const stateFlaggedFile = `output/${state.urlName}_flagged.csv`;
     console.log(`State: ${state.name}, OSM Relation ID: ${state.osmRelationId}`);
     await saveBoundariesWithinToCSV(state.osmRelationId);
