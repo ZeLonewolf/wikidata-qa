@@ -4,6 +4,13 @@ const path = require('path');
 
 // Function to generate the HTML content
 function generateHTML(stateData, outputDir) {
+
+  //Generate sum of all findings
+  let totalFindings = 0;
+  for (const stateAbbrev in stateData) {
+    totalFindings += stateData[stateAbbrev];
+  }
+
   let htmlContent = `
   <!DOCTYPE html>
   <html lang="en">
@@ -23,7 +30,7 @@ function generateHTML(stateData, outputDir) {
   <body>
       <h1>US State Boundary Quality Assurance Checks</h1>
       <table>
-      <tr><th>State</th><th colspan="3">Flagged Issues</th>
+      <tr><th>State</th><th colspan="3"><b>${totalFindings}</b> Flagged Issues</th></tr>
   `;
 
   for (const stateAbbrev in stateData) {
@@ -31,6 +38,7 @@ function generateHTML(stateData, outputDir) {
       const findings = stateData[stateAbbrev];
       const stateName = getStateName(stateAbbrev)
       console.log(stateAbbrev);
+      console.log(stateName);
 
       // Replace spaces with underscores for file names
       let stateFileName = stateName.replace(/ /g, '_');

@@ -20,7 +20,7 @@ async function processOneState(stateName) {
   }
 
   thisState.fipsCode = getStateFipsCode(thisState.name);
-  thisState.urlname = thisState.name.replace(/\s/g, '_');
+  thisState.urlName = thisState.name.replace(/\s/g, '_');
 
   try {
     const findings = await processState(thisState);
@@ -54,8 +54,8 @@ async function processState(state) {
     state.abbrev = getStateAbbreviation(state.name);
     const flaggedFindings = await boundaryCheck(`output/${state.osmRelationId}.csv`, stateFile, state, CDPs, citiesAndTowns);    
     console.log(`Boundary check complete for ${state.name}, OSM Relation ID: ${state.osmRelationId}`);
-    convertCsvToHtml(stateFile, state.name);
-    convertCsvToHtml(stateFlaggedFile, state.name);
+    convertCsvToHtml(stateFile, state);
+    convertCsvToHtml(stateFlaggedFile, state);
     console.log(`HTML generation complete for ${state.name}, OSM Relation ID: ${state.osmRelationId}`);
     return flaggedFindings;
 }
