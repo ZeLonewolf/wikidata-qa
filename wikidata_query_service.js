@@ -1,3 +1,5 @@
+const { nonAdminQIDs } = require('./non_admin_entities');
+
 function getStateQIDQuery(relationId) {
     return `SELECT ?state ?stateLabel WHERE {
         ?state wdt:P402 "${relationId}".
@@ -25,7 +27,7 @@ function getCitiesAndTownsInStateQuery(qid) {
         # Exclude other types of districts
         FILTER NOT EXISTS {
             ?city wdt:P31/wdt:P279* ?excludedClass.
-            VALUES ?excludedClass { wd:Q610237 wd:Q104146790 wd:Q5398059 wd:Q35080211 }
+            VALUES ?excludedClass { ${nonAdminQIDs().map(qid => `wd:${qid}`).join(' ')} }
         }
 
         # Exclude counties or county equivalents, but allow consolidated city-counties
