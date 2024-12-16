@@ -58,15 +58,11 @@ function getStateFipsCode(stateName) {
 }
 
 async function getCDPs(state) {
-  console.log(state.name);
   const url = `https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer/2024_gaz_place_${state.fipsCode}.txt`;
-  console.log(url);
 
   try {
     const response = await axios.get(url);
     const rawData = response.data;
-
-    console.log(rawData);
 
     // Split into rows and process as tab-delimited
     const rows = rawData.split('\n')

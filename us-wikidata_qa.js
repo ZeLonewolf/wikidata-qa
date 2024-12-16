@@ -20,6 +20,7 @@ async function processOneState(stateName) {
   }
 
   thisState.fipsCode = getStateFipsCode(thisState.name);
+  thisState.urlname = thisState.name.replace(/\s/g, '_');
 
   try {
     const findings = await processState(thisState);
@@ -45,10 +46,9 @@ async function processOneState(stateName) {
 async function processState(state) {
     const CDPs = await getCDPs(state);
     const citiesAndTowns = await getCitiesAndTownsInStateRelation(state.osmRelationId);
-    const stateName = state.name.replace(/\s/g, '_');
-    const stateFile = `output/${stateName}.csv`;
-    const stateFlaggedFile = `output/${stateName}_flagged.csv`;
-    console.log(`State: ${stateName}, OSM Relation ID: ${state.osmRelationId}`);
+    const stateFile = `output/${state.urlname}.csv`;
+    const stateFlaggedFile = `output/${state.urlname}_flagged.csv`;
+    console.log(`State: ${state.name}, OSM Relation ID: ${state.osmRelationId}`);
     await saveBoundariesWithinToCSV(state.osmRelationId);
     await saveCitiesAndTownsToHTML(citiesAndTowns, state.name);
     state.abbrev = getStateAbbreviation(state.name);
