@@ -49,33 +49,24 @@ jobs:
         name: output-${{ matrix.state }}
         path: ./output
 
-  national_artifacts:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Set up Node.js 20.x
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20.x'
-    - name: Install dependencies
-      run: npm install
-    - name: Generate national artifacts
-      run: node ./non_admin_entities_html.js
-
   combine:
-    needs: [build, national_artifacts]
+    needs: build
     runs-on: ubuntu-latest
     steps:
+    - uses: actions/checkout@v4
+
     - name: Set up Node.js 20.x
       uses: actions/setup-node@v4
       with:
         node-version: '20.x'
-
-    - uses: actions/checkout@v4
 
     - name: Download all artifacts
       uses: actions/download-artifact@v4
     - name: Show downloaded artifacts
       run: ls -lR
+
+    - name: Generate national artifacts
+      run: node ./non_admin_entities_html.js
 
     - name: Create combined output directory
       run: mkdir -p combined_output
@@ -85,7 +76,7 @@ jobs:
         find . -name '*.csv' -exec mv {} combined_output/ \;
         find . -name '*.csv.txt' -exec mv {} combined_output/ \;
         find . -name '*.html' -exec mv {} combined_output/ \;
-
+        cp -r output/* combined_output/
     - name: Build index
       run: node ./findings_index.js ./combined_output
 
