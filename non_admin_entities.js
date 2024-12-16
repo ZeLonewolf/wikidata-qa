@@ -5,6 +5,9 @@ function nonAdminQIDs() {
         'Q5398059',  // US Indian reservation
         'Q35080211', // US Wildlife manag
         'Q15726209', // US school district
+        'Q6047382', // Educational service agency (school district), ex: Educational Service District 105 Q30268036
+        'Q192611', // Electoral unit, ex: Seattle City Council District Q117305289
+        'Q112904835', // Fire district
     ];
 }
 
