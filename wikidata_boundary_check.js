@@ -143,7 +143,20 @@ function getNamesFromWikidata (qid) {
         const uniqueNames = new Set([mainName, ...aliasArray]);
         return Array.from(uniqueNames);
     }
-    console.log(`Error! Cache miss: ${qid}`);
+    // On cache miss, fetch and cache the data
+    const data = retrieveWikidataData([qid]);
+    if (data.entities[qid]) {
+        const label = data.entities[qid].labels?.en?.value;
+        const aliases = data.entities[qid].aliases;
+        if (label) {
+            wdCache.set(qid, label);
+            wdAliasesCache.set(qid, aliases);
+            const aliasArray = aliases?.en?.map(a => a.value.split(',')[0]) || [];
+            const uniqueNames = new Set([label, ...aliasArray]);
+            return Array.from(uniqueNames);
+        }
+    }
+    console.log(`Error! Failed to fetch data for ${qid}`);
     return [];
 };
 
@@ -513,8 +526,10 @@ async function processCSV(results, writers, state, CDPs, citiesAndTowns) {
     unfoundCitiesAndTowns.forEach(city => {
         const cityData = unfoundCityAndTownData.entities[citiesAndTownsQIDMap.get(city)];
 
-        const cityP131 = cityData.claims.P131?.map(claim => claim.mainsnak.datavalue?.value.id).join(';') || '';
-        const cityP131_name = getNamesFromWikidata(cityP131)[0];
+        const cityP131Values = cityData.claims.P131?.map(claim => claim.mainsnak.datavalue?.value.id) || [];
+        const cityP131Names = cityP131Values.map(id => getNamesFromWikidata(id)[0]);
+        const cityP131 = cityP131Values.join(';');
+        const cityP131_name = cityP131Names.join(';');
         const cityP402 = cityData.claims.P402?.map(claim => claim.mainsnak.datavalue?.value.id).join(';') || '';
         const cityP402Reverse = cityData.claims.P402_reverse?.map(claim => claim.mainsnak.datavalue?.value.id).join(';') || '';
 
