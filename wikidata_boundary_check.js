@@ -55,6 +55,21 @@ function chunkArray(array, chunkSize) {
     return chunks;
 }
 
+function retrieveWikidataDataInChunks(qids) {
+    const chunkedQids = chunkArray(qids, CHUNK_SIZE);
+    const results = chunkedQids.map(chunk => retrieveWikidataData(chunk));
+    // Merge all the results into a single object
+    return results.reduce((merged, result) => {
+        return {
+            ...merged,
+            entities: {
+                ...merged.entities,
+                ...result.entities
+            }
+        };
+    }, { entities: {} });
+}
+
 function retrieveWikidataData(qids) {
     try {
         const res = request('GET', `https://www.wikidata.org/w/api.php`, {
@@ -69,7 +84,7 @@ function retrieveWikidataData(qids) {
         return JSON.parse(res.getBody('utf8'));
     } catch (error) {
         console.error(`General error fetching data for a list of QIDs:`, error);
-        throw error;
+        return {};
     }
 }
 
@@ -521,7 +536,7 @@ async function processCSV(results, writers, state, CDPs, citiesAndTowns) {
     );
 
     const unfoundCityAndTownQIDs = unfoundCitiesAndTowns.map(city => citiesAndTownsQIDMap.get(city));
-    const unfoundCityAndTownData = retrieveWikidataData(unfoundCityAndTownQIDs);
+    const unfoundCityAndTownData = retrieveWikidataDataInChunks(unfoundCityAndTownQIDs);
 
     unfoundCitiesAndTowns.forEach(city => {
         const cityData = unfoundCityAndTownData.entities[citiesAndTownsQIDMap.get(city)];
