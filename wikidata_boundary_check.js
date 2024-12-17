@@ -57,7 +57,17 @@ function chunkArray(array, chunkSize) {
 
 function retrieveWikidataDataInChunks(qids) {
     const chunkedQids = chunkArray(qids, CHUNK_SIZE);
-    return chunkedQids.map(chunk => retrieveWikidataData(chunk));
+    const results = chunkedQids.map(chunk => retrieveWikidataData(chunk));
+    // Merge all the results into a single object
+    return results.reduce((merged, result) => {
+        return {
+            ...merged,
+            entities: {
+                ...merged.entities,
+                ...result.entities
+            }
+        };
+    }, { entities: {} });
 }
 
 function retrieveWikidataData(qids) {
@@ -74,7 +84,7 @@ function retrieveWikidataData(qids) {
         return JSON.parse(res.getBody('utf8'));
     } catch (error) {
         console.error(`General error fetching data for a list of QIDs:`, error);
-        throw error;
+        return {};
     }
 }
 
