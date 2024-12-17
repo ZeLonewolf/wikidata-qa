@@ -55,6 +55,24 @@ function chunkArray(array, chunkSize) {
     return chunks;
 }
 
+function retrieveWikidataData(qids) {
+    try {
+        const res = request('GET', `https://www.wikidata.org/w/api.php`, {
+            qs: {
+                action: 'wbgetentities',
+                ids: qids.join('|'),
+                props: 'claims|labels|sitelinks|aliases',
+                languages: 'en', // Only necessary for labels
+                format: 'json'
+            }
+        });
+        return JSON.parse(res.getBody('utf8'));
+    } catch (error) {
+        console.error(`General error fetching data for a list of QIDs:`, error);
+        throw error;
+    }
+}
+
 // Refactored function to handle fetching and caching of both data types
 function cacheWikidataData(qids, cacheClaimsFunction, cacheNamesFunction, cacheSitelinksFunction, cacheAliasesFunction) {
     const chunkedQids = chunkArray(qids, CHUNK_SIZE);
@@ -125,7 +143,20 @@ function getNamesFromWikidata (qid) {
         const uniqueNames = new Set([mainName, ...aliasArray]);
         return Array.from(uniqueNames);
     }
-    console.log(`Error! Cache miss: ${qid}`);
+    // On cache miss, fetch and cache the data
+    const data = retrieveWikidataData([qid]);
+    if (data.entities[qid]) {
+        const label = data.entities[qid].labels?.en?.value;
+        const aliases = data.entities[qid].aliases;
+        if (label) {
+            wdCache.set(qid, label);
+            wdAliasesCache.set(qid, aliases);
+            const aliasArray = aliases?.en?.map(a => a.value.split(',')[0]) || [];
+            const uniqueNames = new Set([label, ...aliasArray]);
+            return Array.from(uniqueNames);
+        }
+    }
+    console.log(`Error! Failed to fetch data for ${qid}`);
     return [];
 };
 
@@ -260,8 +291,6 @@ function isNullOrEmpty(value) {
 
 async function boundaryCheck(inputCSV, outputCSV, state, CDPs, citiesAndTowns) {
 
-    const citiesAndTownsNames = citiesAndTowns.map(entry => entry.cityLabel.value);
-
     const outputIssuesCSV = outputCSV.replace('.csv', '_flagged.csv');
     const outputP402CSV = outputCSV.replace('.csv', '_P402_entry.csv.txt');
 
@@ -298,7 +327,7 @@ async function boundaryCheck(inputCSV, outputCSV, state, CDPs, citiesAndTowns) {
         skip_empty_lines: true
     });
 
-    return await processCSV(results, writers, state, CDPs, citiesAndTownsNames);
+    return await processCSV(results, writers, state, CDPs, citiesAndTowns);
 }
 
 function simplifyWDNames(names) {
@@ -329,7 +358,7 @@ function getClaimWDQIDsForLookup() {
     return Array.from(distinctQIDs);
 }
 
-async function processCSV(results, writers, state, CDPs, citiesAndTownsNames) {
+async function processCSV(results, writers, state, CDPs, citiesAndTowns) {
 
     const processedData = [];
     const flaggedData = [];
@@ -346,6 +375,8 @@ async function processCSV(results, writers, state, CDPs, citiesAndTownsNames) {
     cacheWikidataToOSMIDLinks(results.map(row => row['@id']));
 
     let unfoundCDPs = [...CDPs];
+    const citiesAndTownsQIDMap = new Map(citiesAndTowns.map(entry => [entry.cityLabel.value, entry.city.value.replace('http://www.wikidata.org/entity/', '')]));
+    const citiesAndTownsNames = citiesAndTowns.map(entry => entry.cityLabel.value);
     let unfoundCitiesAndTowns = [...citiesAndTownsNames];
     let rowCount = 0;
 
@@ -450,7 +481,7 @@ async function processCSV(results, writers, state, CDPs, citiesAndTownsNames) {
                 flags.push("OSM says CDP but wikidata is missing CDP statement");
             }
             if (processedRow.boundary == "administrative" && !citiesAndTownsNames.includes(processedRow.name)) {
-                flags.push(`OSM boundary=administrative ${processedRow.name} is not on the Wikidata <a href="https://zelonewolf.github.io/wikidata-qa/${state.urlName}_citiesAndTowns.html">list</a> of cities and towns`);
+                flags.push(`OSM boundary=administrative ${processedRow.name} is not on the Wikidata <a href="https://zelonewolf.github.io/wikidata-qa/${state.name}_citiesAndTowns.html">list</a> of cities and towns`);
             }
             if(processedRow.boundary == "census" && !CDPs.includes(processedRow.name)) {
                 flags.push(`OSM boundary=census ${processedRow.name} is not on the census bureau <a href="https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer/2024_gaz_place_${state.fipsCode}.txt">list</a> of CDPs`);
@@ -489,14 +520,47 @@ async function processCSV(results, writers, state, CDPs, citiesAndTownsNames) {
         )    
     );
 
-    unfoundCitiesAndTowns.forEach(city =>
+    const unfoundCityAndTownQIDs = unfoundCitiesAndTowns.map(city => citiesAndTownsQIDMap.get(city));
+    const unfoundCityAndTownData = retrieveWikidataData(unfoundCityAndTownQIDs);
+
+    unfoundCitiesAndTowns.forEach(city => {
+        const cityData = unfoundCityAndTownData.entities[citiesAndTownsQIDMap.get(city)];
+
+        const cityP131Values = cityData.claims.P131?.map(claim => claim.mainsnak.datavalue?.value.id) || [];
+        const cityP131Names = cityP131Values.map(id => getNamesFromWikidata(id)[0]);
+        const cityP131 = cityP131Values.join(';');
+        const cityP131_name = cityP131Names.join(';');
+        const cityP402 = cityData.claims.P402?.map(claim => claim.mainsnak.datavalue?.value.id).join(';') || '';
+        const cityP402Reverse = cityData.claims.P402_reverse?.map(claim => claim.mainsnak.datavalue?.value.id).join(';') || '';
+
+        const P31Values = [];
+        const P31Claims = cityData.claims.P31 || [];
+        for (const claim of P31Claims) {
+            const claimValue = claim.mainsnak.datavalue.value.id;
+            if (claimValue) {
+                P31Values.push(claimValue);
+            }
+        }
+        const cityP31 = P31Values.join('; ');
+
+        // Fetch first name for each P31Values value
+        const cityP31_name = P31Values.map(id => getNamesFromWikidata(id)[0]).join('; ');
+
         flaggedData.push(
             {
-                name: city,
-                flags: [`${city} is listed in wikidata as an instance of a subclass of Q17361443 (admin. territorial entity of the US) but no boundary=administrative relation was found with this name in OSM, and it is not on the list of <a href="https://zelonewolf.github.io/wikidata-qa/non_admin_entities.html">excluded</a> boundary types.`]
+                wikidata_name: city,
+                wikidata: citiesAndTownsQIDMap.get(city),
+                P31: cityP31,
+                P31_name: cityP31_name,
+                P131: cityP131,
+                P131_name: cityP131_name,
+                P402: cityP402,
+                P402_reverse: cityP402Reverse,
+                flags: [`${city} is listed in wikidata as a subclass of Q17361443 (admin. territorial entity of the US) but no boundary=administrative relation was found with this name in OSM`]
             }
-        )    
-    );
+        );
+
+    });
 
     await writers.csvWriter.writeRecords(processedData)
         .then(() => console.log('The CSV file was written successfully'));
