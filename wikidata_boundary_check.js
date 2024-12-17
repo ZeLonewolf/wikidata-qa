@@ -55,6 +55,11 @@ function chunkArray(array, chunkSize) {
     return chunks;
 }
 
+function retrieveWikidataDataInChunks(qids) {
+    const chunkedQids = chunkArray(qids, CHUNK_SIZE);
+    return chunkedQids.map(chunk => retrieveWikidataData(chunk));
+}
+
 function retrieveWikidataData(qids) {
     try {
         const res = request('GET', `https://www.wikidata.org/w/api.php`, {
@@ -521,7 +526,7 @@ async function processCSV(results, writers, state, CDPs, citiesAndTowns) {
     );
 
     const unfoundCityAndTownQIDs = unfoundCitiesAndTowns.map(city => citiesAndTownsQIDMap.get(city));
-    const unfoundCityAndTownData = retrieveWikidataData(unfoundCityAndTownQIDs);
+    const unfoundCityAndTownData = retrieveWikidataDataInChunks(unfoundCityAndTownQIDs);
 
     unfoundCitiesAndTowns.forEach(city => {
         const cityData = unfoundCityAndTownData.entities[citiesAndTownsQIDMap.get(city)];
