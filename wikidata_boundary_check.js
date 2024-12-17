@@ -55,6 +55,24 @@ function chunkArray(array, chunkSize) {
     return chunks;
 }
 
+function retrieveWikidataData(qids) {
+    try {
+        const res = request('GET', `https://www.wikidata.org/w/api.php`, {
+            qs: {
+                action: 'wbgetentities',
+                ids: qids.join('|'),
+                props: 'claims|labels|sitelinks|aliases',
+                languages: 'en', // Only necessary for labels
+                format: 'json'
+            }
+        });
+        return JSON.parse(res.getBody('utf8'));
+    } catch (error) {
+        console.error(`General error fetching data for a list of QIDs:`, error);
+        throw error;
+    }
+}
+
 // Refactored function to handle fetching and caching of both data types
 function cacheWikidataData(qids, cacheClaimsFunction, cacheNamesFunction, cacheSitelinksFunction, cacheAliasesFunction) {
     const chunkedQids = chunkArray(qids, CHUNK_SIZE);
@@ -489,15 +507,45 @@ async function processCSV(results, writers, state, CDPs, citiesAndTowns) {
         )    
     );
 
-    unfoundCitiesAndTowns.forEach(city =>
+    const unfoundCityAndTownQIDs = unfoundCitiesAndTowns.map(city => citiesAndTownsQIDMap.get(city));
+    const unfoundCityAndTownData = retrieveWikidataData(unfoundCityAndTownQIDs);
+
+    unfoundCitiesAndTowns.forEach(city => {
+        const cityData = unfoundCityAndTownData.entities[citiesAndTownsQIDMap.get(city)];
+
+        const cityP131 = cityData.claims.P131?.map(claim => claim.mainsnak.datavalue?.value.id).join(';') || '';
+        const cityP131_name = getNamesFromWikidata(cityP131)[0];
+        const cityP402 = cityData.claims.P402?.map(claim => claim.mainsnak.datavalue?.value.id).join(';') || '';
+        const cityP402Reverse = cityData.claims.P402_reverse?.map(claim => claim.mainsnak.datavalue?.value.id).join(';') || '';
+
+        const P31Values = [];
+        const P31Claims = cityData.claims.P31 || [];
+        for (const claim of P31Claims) {
+            const claimValue = claim.mainsnak.datavalue.value.id;
+            if (claimValue) {
+                P31Values.push(claimValue);
+            }
+        }
+        const cityP31 = P31Values.join('; ');
+
+        // Fetch first name for each P31Values value
+        const cityP31_name = P31Values.map(id => getNamesFromWikidata(id)[0]).join('; ');
+
         flaggedData.push(
             {
                 wikidata_name: city,
                 wikidata: citiesAndTownsQIDMap.get(city),
+                P31: cityP31,
+                P31_name: cityP31_name,
+                P131: cityP131,
+                P131_name: cityP131_name,
+                P402: cityP402,
+                P402_reverse: cityP402Reverse,
                 flags: [`${city} is listed in wikidata as a subclass of Q17361443 (admin. territorial entity of the US) but no boundary=administrative relation was found with this name in OSM`]
             }
-        )    
-    );
+        );
+
+    });
 
     await writers.csvWriter.writeRecords(processedData)
         .then(() => console.log('The CSV file was written successfully'));
