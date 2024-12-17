@@ -2,6 +2,17 @@ const fs = require('fs');
 const Papa = require('papaparse');
 const path = require('path');
 
+function applyOSMAndWikidataLinks(value) {
+    let linkedValue = value;
+    // Link OSM relations
+    linkedValue = linkedValue.replace(/^r(\d+)$/g, '<a href="https://openstreetmap.org/relation/$1">r$1</a>');
+    // Link OSM ways  
+    linkedValue = linkedValue.replace(/^w(\d+)$/g, '<a href="https://openstreetmap.org/way/$1">w$1</a>');
+    // Link Wikidata items
+    linkedValue = linkedValue.replace(/^Q(\d+)$/g, '<a href="https://www.wikidata.org/wiki/Q$1">Q$1</a>');
+    return linkedValue;
+}
+
 function convertCsvToHtml(csvFilePath, state) {
 
     // Check if the file path is valid
@@ -62,15 +73,15 @@ function convertCsvToHtml(csvFilePath, state) {
                     Object.values(row).forEach(function(value) {
                         // Convert cell values with semi-colons into bulleted lists
                         if (value.includes(';')) {
-                            const listItems = value.split(';').map(item => `<li>${item.trim()}</li>`).join('');
-                            value = `<ul>${listItems}</ul>`;
+                            const items = value.split(';').map(item => item.trim());
+                            // Apply OSM and Wikidata linking to each item
+                            const linkedItems = items.map(item => {
+                                return `<li>${applyOSMAndWikidataLinks(item)}</li>`;
+                            }).join('');
+                            value = `<ul>${linkedItems}</ul>`;
+                        } else {
+                            value = applyOSMAndWikidataLinks(value);
                         }
-                        // Link OSM relations
-                        value = value.replace(/r(\d+)/g, '<a href="https://openstreetmap.org/relation/$1">r$1</a>');
-                        // Link OSM ways
-                        value = value.replace(/[^w]w(\d+)/g, '<a href="https://openstreetmap.org/way/$1">w$1</a>');
-                        // Link Wikidata items
-                        value = value.replace(/Q(\d+)/g, '<a href="https://www.wikidata.org/wiki/Q$1">Q$1</a>');
                         html += `<td>${value}</td>`;
                     });
                     html += '</tr>';
