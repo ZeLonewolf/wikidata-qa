@@ -260,8 +260,6 @@ function isNullOrEmpty(value) {
 
 async function boundaryCheck(inputCSV, outputCSV, state, CDPs, citiesAndTowns) {
 
-    const citiesAndTownsNames = citiesAndTowns.map(entry => entry.cityLabel.value);
-
     const outputIssuesCSV = outputCSV.replace('.csv', '_flagged.csv');
     const outputP402CSV = outputCSV.replace('.csv', '_P402_entry.csv.txt');
 
@@ -298,7 +296,7 @@ async function boundaryCheck(inputCSV, outputCSV, state, CDPs, citiesAndTowns) {
         skip_empty_lines: true
     });
 
-    return await processCSV(results, writers, state, CDPs, citiesAndTownsNames);
+    return await processCSV(results, writers, state, CDPs, citiesAndTowns);
 }
 
 function simplifyWDNames(names) {
@@ -329,7 +327,7 @@ function getClaimWDQIDsForLookup() {
     return Array.from(distinctQIDs);
 }
 
-async function processCSV(results, writers, state, CDPs, citiesAndTownsNames) {
+async function processCSV(results, writers, state, CDPs, citiesAndTowns) {
 
     const processedData = [];
     const flaggedData = [];
@@ -346,6 +344,8 @@ async function processCSV(results, writers, state, CDPs, citiesAndTownsNames) {
     cacheWikidataToOSMIDLinks(results.map(row => row['@id']));
 
     let unfoundCDPs = [...CDPs];
+    const citiesAndTownsQIDMap = new Map(citiesAndTowns.map(entry => [entry.cityLabel.value, entry.city.value.replace('http://www.wikidata.org/entity/', '')]));
+    const citiesAndTownsNames = citiesAndTowns.map(entry => entry.cityLabel.value);
     let unfoundCitiesAndTowns = [...citiesAndTownsNames];
     let rowCount = 0;
 
@@ -450,7 +450,7 @@ async function processCSV(results, writers, state, CDPs, citiesAndTownsNames) {
                 flags.push("OSM says CDP but wikidata is missing CDP statement");
             }
             if (processedRow.boundary == "administrative" && !citiesAndTownsNames.includes(processedRow.name)) {
-                flags.push(`OSM boundary=administrative ${processedRow.name} is not on the Wikidata <a href="https://zelonewolf.github.io/wikidata-qa/${state.urlName}_citiesAndTowns.html">list</a> of cities and towns`);
+                flags.push(`OSM boundary=administrative ${processedRow.name} is not on the Wikidata <a href="https://zelonewolf.github.io/wikidata-qa/${state.name}_citiesAndTowns.html">list</a> of cities and towns`);
             }
             if(processedRow.boundary == "census" && !CDPs.includes(processedRow.name)) {
                 flags.push(`OSM boundary=census ${processedRow.name} is not on the census bureau <a href="https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer/2024_gaz_place_${state.fipsCode}.txt">list</a> of CDPs`);
@@ -492,8 +492,9 @@ async function processCSV(results, writers, state, CDPs, citiesAndTownsNames) {
     unfoundCitiesAndTowns.forEach(city =>
         flaggedData.push(
             {
-                name: city,
-                flags: [`${city} is listed in wikidata as an instance of a subclass of Q17361443 (admin. territorial entity of the US) but no boundary=administrative relation was found with this name in OSM, and it is not on the list of <a href="https://zelonewolf.github.io/wikidata-qa/non_admin_entities.html">excluded</a> boundary types.`]
+                wikidata_name: city,
+                wikidata: citiesAndTownsQIDMap.get(city),
+                flags: [`${city} is listed in wikidata as a subclass of Q17361443 (admin. territorial entity of the US) but no boundary=administrative relation was found with this name in OSM`]
             }
         )    
     );
