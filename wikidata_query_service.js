@@ -71,10 +71,9 @@ async function queryWikidata(query) {
     if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
     }
-
+    console.log(`====================\n${query}\n====================`);
     const data = await response.json();
     return data.results.bindings;
-
 }
 
 async function getCitiesAndTownsInStateRelation(relationId) {
