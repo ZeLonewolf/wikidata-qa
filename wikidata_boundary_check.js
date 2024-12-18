@@ -389,6 +389,34 @@ async function processCSV(results, writers, state, CDPs, citiesAndTowns) {
     cacheWikidataClaimsAndNames(getClaimWDQIDsForLookup());
     cacheWikidataToOSMIDLinks(results.map(row => row['@id']));
 
+    // Generate list of duplicate city names
+    const cityNameCounts = citiesAndTowns.reduce((acc, entry) => {
+        const name = entry.cityLabel.value;
+        acc[name] = (acc[name] || 0) + 1;
+        return acc;
+    }, {});
+
+    const duplicateCityNames = Object.entries(cityNameCounts)
+        .filter(([_, count]) => count > 1)
+        .map(([name]) => name);
+
+    console.log(`Found ${duplicateCityNames.length} cities with duplicate names: ${duplicateCityNames.join(', ')}`);
+
+    //Make a map of city name to list of wikidata QIDs
+    const duplicateCityNameToQIDs = new Map();
+    for (const entry of citiesAndTowns) {
+        const name = entry.cityLabel.value;
+        // Only process cities that are in the duplicates list
+        if (duplicateCityNames.includes(name)) {
+            const qid = entry.city.value.replace('http://www.wikidata.org/entity/', '');
+            if (duplicateCityNameToQIDs.has(name)) {
+                duplicateCityNameToQIDs.get(name).push(qid);
+            } else {
+                duplicateCityNameToQIDs.set(name, [qid]);
+            }
+        }
+    }
+
     let unfoundCDPs = [...CDPs];
     const citiesAndTownsQIDMap = new Map(citiesAndTowns.map(entry => [entry.cityLabel.value, entry.city.value.replace('http://www.wikidata.org/entity/', '')]));
     const citiesAndTownsNames = citiesAndTowns.map(entry => entry.cityLabel.value);
@@ -534,11 +562,15 @@ async function processCSV(results, writers, state, CDPs, citiesAndTowns) {
             }
         )    
     );
-
+    
     const unfoundCityAndTownQIDs = unfoundCitiesAndTowns.map(city => citiesAndTownsQIDMap.get(city));
     const unfoundCityAndTownData = retrieveWikidataDataInChunks(unfoundCityAndTownQIDs);
 
     unfoundCitiesAndTowns.forEach(city => {
+
+        //Get list of duplicates for this city
+        const duplicates = duplicateCityNameToQIDs.get(city);
+
         const cityData = unfoundCityAndTownData.entities[citiesAndTownsQIDMap.get(city)];
 
         const cityP131Values = cityData.claims.P131?.map(claim => claim.mainsnak.datavalue?.value.id) || [];
@@ -561,19 +593,24 @@ async function processCSV(results, writers, state, CDPs, citiesAndTowns) {
         // Fetch first name for each P31Values value
         const cityP31_name = P31Values.map(id => getNamesFromWikidata(id)[0]).join('; ');
 
-        flaggedData.push(
-            {
-                wikidata_name: city,
-                wikidata: citiesAndTownsQIDMap.get(city),
-                P31: cityP31,
-                P31_name: cityP31_name,
-                P131: cityP131,
-                P131_name: cityP131_name,
-                P402: cityP402,
-                P402_reverse: cityP402Reverse,
-                flags: [`${city} is listed in wikidata as a subclass of Q17361443 (admin. territorial entity of the US) but no boundary=administrative relation was found with this name in OSM`]
-            }
-        );
+        const thisQID = citiesAndTownsQIDMap.get(city);
+
+        const finding = {
+            wikidata_name: city,
+            wikidata: duplicates ? duplicates.join('; ') : thisQID,
+            P31: cityP31,
+            P31_name: cityP31_name,
+            P131: cityP131,
+            P131_name: cityP131_name,
+            P402: cityP402,
+            P402_reverse: cityP402Reverse,
+            flags: [`${city} is listed in wikidata as a subclass of Q17361443 (admin. territorial entity of the US) but no boundary=administrative relation was found with this name in OSM`]
+        };
+        if(duplicates) {
+            finding.flags.push(`${city} is listed in wikidata multiple times: ${duplicates}`);
+        }
+
+        flaggedData.push(finding);
 
     });
 
