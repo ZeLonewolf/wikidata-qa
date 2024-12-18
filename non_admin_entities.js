@@ -5,6 +5,7 @@ function nonAdminQIDs() {
         'Q5398059',  // US Indian reservation
         'Q35080211', // US Wildlife manag
         'Q15726209', // US school district
+        'Q131463097', // former municipality
     ];
 }
 
