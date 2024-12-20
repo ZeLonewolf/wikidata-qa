@@ -524,7 +524,7 @@ async function processCSV(results, writers, state, CDPs, citiesAndTowns) {
                 flags.push("OSM says CDP but wikidata is missing CDP statement");
             }
             if (processedRow.boundary == "administrative" && !citiesAndTownsNames.includes(processedRow.name)) {
-                flags.push(`OSM boundary=administrative ${processedRow.name} is not on the Wikidata <a href="https://zelonewolf.github.io/wikidata-qa/${state.name}_citiesAndTowns.html">list</a> of cities and towns`);
+                flags.push(`OSM boundary=administrative ${processedRow.name} is not on the Wikidata <a href="https://zelonewolf.github.io/wikidata-qa/${state.urlName}_citiesAndTowns.html">list</a> of cities and towns`);
             }
             if(processedRow.boundary == "census" && !CDPs.includes(processedRow.name)) {
                 flags.push(`OSM boundary=census ${processedRow.name} is not on the census bureau <a href="https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer/2024_gaz_place_${state.fipsCode}.txt">list</a> of CDPs`);
