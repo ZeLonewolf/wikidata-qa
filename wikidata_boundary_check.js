@@ -6,6 +6,37 @@ const { parse } = require('csv-parse/sync');
 //QIDs that correspond to a non-admin boundary (CDP, unincorporated)
 const CDP_QID = ["Q498162", "Q56064719", "Q17343829"];
 
+//Map of required tag->key combinations
+const validBoundaryTags = {
+    "administrative": {
+        "required": {
+            "name": true,
+            "admin_level": true,
+            "wikidata": true,
+            "border_type": true,
+            "type": "boundary"
+        },
+        "disallowed": ["place"]
+    },
+    "census": {
+        "required": {
+            "name": true,
+            "wikidata": true,
+            "type": "boundary"
+        },
+        "disallowed": ["place"]
+    },
+    "place": {
+        "required": {
+            "name": true,
+            "wikidata": true,
+            "type": "boundary",
+            "place": true
+        },
+        "disallowed": ["admin_level", "border_type"]
+    }
+}
+
 csvHeader = [
         { id: '@id', title: '@id' },
         { id: 'boundary', title: 'boundary' },
@@ -21,6 +52,33 @@ csvHeader = [
         { id: 'P402_reverse', title: 'P402_reverse' },
         { id: 'flags', title: 'flags' }
     ];
+
+function validateTags(row, flags) {
+    const boundaryType = row.boundary;
+    const validTags = validBoundaryTags[boundaryType];
+
+    if (!validTags) {
+        console.log(`No validator rules for boundary type: ${boundaryType}`);
+        return;
+    }
+
+    for (const key in validTags.required) {
+        const value = validTags.required[key];
+        if (!row[key]) {
+            if (value === true) {
+                flags.push(`boundary=${boundaryType}: Missing expected tag: ${key}`);
+            } else {
+                flags.push(`boundary=${boundaryType}: Tag ${key}=${value} is expected but actual value is ${key}=${row[key]}`);
+            }
+        }
+    }
+
+    for (const key of validTags.disallowed) {
+        if (row[key]) {
+            flags.push(`boundary=${boundaryType} is set but ${key}=* is unexpected`);
+        }
+    }
+}
 
 function expandAbbreviations(texts) {
     if (!Array.isArray(texts)) {
@@ -466,6 +524,7 @@ async function processCSV(results, writers, state, CDPs, citiesAndTowns) {
 
         processedRow.wikidata_name = processedRow.wikidata_names.join(';');
 
+
         if(processedRow[`@type`] == "relation") {
             processedRow['@id'] = `r${processedRow['@id']}`;
         }
@@ -477,14 +536,7 @@ async function processCSV(results, writers, state, CDPs, citiesAndTowns) {
         if(!isNullOrEmpty(processedRow.fixme)) {
             flags.push(`FIXME: ${processedRow.fixme}`);
         }
-        if(isNullOrEmpty(processedRow.boundary)) {
-            flags.push("Missing boundary=* tag");
-        }
-        if(isNullOrEmpty(processedRow.name)) {
-            flags.push("Missing name");
-        }
         if(isNullOrEmpty(processedRow.wikidata)) {
-            flags.push("Missing wikidata");
             if(!isNullOrEmpty(processedRow.P402_reverse)) {
                 flags.push("P402 link found");
             }
@@ -540,6 +592,8 @@ async function processCSV(results, writers, state, CDPs, citiesAndTowns) {
             }
             
         }
+
+        validateTags(processedRow, flags);
 
         processedRow.flags = flags.join(";");
 
