@@ -37,6 +37,11 @@ const validBoundaryTags = {
     }
 }
 
+const tagPropertyPairs = {
+    "official_name": "P1448",
+    "short_name": "P1813"
+}
+
 csvHeader = [
         { id: '@id', title: '@id' },
         { id: 'boundary', title: 'boundary' },
@@ -76,6 +81,22 @@ function validateTags(row, flags) {
     for (const key of validTags.disallowed) {
         if (row[key]) {
             flags.push(`boundary=${boundaryType} is set but ${key}=* is unexpected`);
+        }
+    }
+
+    // Check if OSM tags match corresponding Wikidata properties
+    const qid = row.wikidata;
+
+    if(qid) {
+        const claims = wdClaimsCache.get(qid);
+
+        for (const [tag, property] of Object.entries(tagPropertyPairs)) {
+            if (row[tag] && claims) {
+                const wikidataValues = claims[property] ? claims[property].map(claim => claim.value) : [];
+                if (!wikidataValues.includes(row[tag])) {
+                    flags.push(`${tag}=${row[tag]} does not match Wikidata ${property} value`);
+                }
+            }
         }
     }
 }
@@ -170,8 +191,8 @@ function cacheWikidataData(qids, cacheClaimsFunction, cacheNamesFunction, cacheS
                         cacheClaimsFunction(qid, claims);
                     }
                     if (cacheNamesFunction) {
-                        const label = data.entities[qid].labels.en.value;
-                        cacheNamesFunction(qid, label);
+                        const names = data.entities[qid].labels.en.value;
+                        cacheNamesFunction(qid, names);
                     }
                     if (cacheSitelinksFunction) {
                         // Retrieve and process sitelinks
@@ -180,6 +201,15 @@ function cacheWikidataData(qids, cacheClaimsFunction, cacheNamesFunction, cacheS
                     }
                     if (cacheAliasesFunction) {
                         const aliases = data.entities[qid].aliases;
+
+                        // Also allow the OSM name to be the official name
+                        // Resolves, e.g., Town of XYZ, New York
+                        if (data.entities[qid].claims?.P1448) {
+                            const officialNames = data.entities[qid].claims.P1448
+                                .filter(claim => claim.mainsnak?.datavalue?.value?.text)
+                                .map(claim => claim.mainsnak.datavalue.value.text);
+                            aliases.push(officialNames);
+                        }
                         cacheAliasesFunction(qid, aliases);
                     }
                 } catch (error) {
