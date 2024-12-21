@@ -1,7 +1,6 @@
 const axios = require('axios');
 const qs = require('qs');  // Required for proper query string formatting
 const fs = require('fs');
-const path = require('path');
 
 async function saveBoundariesWithinToCSV(osmRelationID) {
     console.log(`Query overpass for boundaries within r${osmRelationID}`);
