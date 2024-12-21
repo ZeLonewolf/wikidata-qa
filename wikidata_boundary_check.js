@@ -569,6 +569,9 @@ async function processCSV(results, writers, state, CDPs, citiesAndTowns) {
                     flags.push("Mismatched P402 link");                    
                 }
             }
+            if (processedRow.P31.includes('Q1093829') && processedRow.border_type !== 'city') {
+                flags.push("Wikidata instance of city (Q1093829) but border_type is not city");
+            }
             if (CDP_QID.some(qid => processedRow.P31.includes(qid)) && processedRow.boundary == "administrative") {
                 flags.push("Wikidata says CDP/unincorporated, OSM says admin boundary");
             }
