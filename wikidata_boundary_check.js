@@ -200,7 +200,7 @@ function cacheWikidataData(qids, cacheClaimsFunction, cacheNamesFunction, cacheS
                         cacheSitelinksFunction(qid, sitelinks);
                     }
                     if (cacheAliasesFunction) {
-                        const aliases = data.entities[qid].aliases;
+                        let aliases = data.entities[qid].aliases || {};
 
                         // Also allow the OSM name to be the official name
                         // Resolves, e.g., Town of XYZ, New York
@@ -208,12 +208,21 @@ function cacheWikidataData(qids, cacheClaimsFunction, cacheNamesFunction, cacheS
                             const officialNames = data.entities[qid].claims.P1448
                                 .filter(claim => claim.mainsnak?.datavalue?.value?.text)
                                 .map(claim => claim.mainsnak.datavalue.value.text);
-                            aliases.push(officialNames);
+                            
+                            // Initialize aliases.en if it doesn't exist
+                            if (!aliases.en) {
+                                aliases.en = [];
+                            }
+                            
+                            // Add each official name as an alias
+                            officialNames.forEach(name => {
+                                aliases.en.push({value: name});
+                            });
                         }
                         cacheAliasesFunction(qid, aliases);
                     }
                 } catch (error) {
-                    console.log(`Error fetching data for QID [${qid}]:`);
+                    console.log(`Error fetching data for QID [${qid}]:`, error);
                 }
             });
 
