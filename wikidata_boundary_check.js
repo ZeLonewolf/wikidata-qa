@@ -434,9 +434,7 @@ function getClaimWDQIDsForLookup() {
 
     return Array.from(distinctQIDs);
 }
-
 async function processCSV(results, writers, state, CDPs, citiesAndTowns) {
-
     const processedData = [];
     const flaggedData = [];
     const quickStatementsP402 = [];
@@ -453,7 +451,7 @@ async function processCSV(results, writers, state, CDPs, citiesAndTowns) {
 
     // Generate list of duplicate city names
     const cityNameCounts = citiesAndTowns.reduce((acc, entry) => {
-        const name = entry.cityLabel.value;
+        const name = cleanAndNormalizeString(entry.cityLabel.value);
         acc[name] = (acc[name] || 0) + 1;
         return acc;
     }, {});
@@ -464,29 +462,31 @@ async function processCSV(results, writers, state, CDPs, citiesAndTowns) {
 
     console.log(`Found ${duplicateCityNames.length} cities with duplicate names: ${duplicateCityNames.join(', ')}`);
 
-    //Make a map of city name to list of wikidata QIDs
+    //Make a map of normalized city name to list of wikidata QIDs
     const duplicateCityNameToQIDs = new Map();
     for (const entry of citiesAndTowns) {
-        const name = entry.cityLabel.value;
+        const normalizedName = cleanAndNormalizeString(entry.cityLabel.value);
         // Only process cities that are in the duplicates list
-        if (duplicateCityNames.includes(name)) {
+        if (duplicateCityNames.includes(normalizedName)) {
             const qid = entry.city.value.replace('http://www.wikidata.org/entity/', '');
-            if (duplicateCityNameToQIDs.has(name)) {
-                duplicateCityNameToQIDs.get(name).push(qid);
+            if (duplicateCityNameToQIDs.has(normalizedName)) {
+                duplicateCityNameToQIDs.get(normalizedName).push(qid);
             } else {
-                duplicateCityNameToQIDs.set(name, [qid]);
+                duplicateCityNameToQIDs.set(normalizedName, [qid]);
             }
         }
     }
 
     let unfoundCDPs = [...CDPs];
-    const citiesAndTownsQIDMap = new Map(citiesAndTowns.map(entry => [entry.cityLabel.value, entry.city.value.replace('http://www.wikidata.org/entity/', '')]));
-    const citiesAndTownsNames = citiesAndTowns.map(entry => entry.cityLabel.value);
+    const citiesAndTownsQIDMap = new Map(citiesAndTowns.map(entry => [
+        cleanAndNormalizeString(entry.cityLabel.value),
+        entry.city.value.replace('http://www.wikidata.org/entity/', '')
+    ]));
+    const citiesAndTownsNames = citiesAndTowns.map(entry => cleanAndNormalizeString(entry.cityLabel.value));
     let unfoundCitiesAndTowns = [...citiesAndTownsNames];
     let rowCount = 0;
 
     for (const row of results) {
-
         const flags = [];
 
         if(!isNullOrEmpty(row['name:en'])) {
@@ -495,28 +495,30 @@ async function processCSV(results, writers, state, CDPs, citiesAndTowns) {
             delete row['name:en'];
         }
 
+        const normalizedName = cleanAndNormalizeString(row['name']);
+
         if(row['boundary'] == 'census') {
             //Remove this boundary from un-found list (allows for duplicate names)
-            let index = unfoundCDPs.findIndex(item => item === row['name']);
+            let index = unfoundCDPs.findIndex(item => cleanAndNormalizeString(item) === normalizedName);
             if (index !== -1) {
                 unfoundCDPs.splice(index, 1);
             }
         } else if(row['boundary'] == 'administrative') {
-            let index = unfoundCitiesAndTowns.findIndex(item => item === row['name']);
+            let index = unfoundCitiesAndTowns.findIndex(item => item === normalizedName);
             if (index !== -1) {
                 unfoundCitiesAndTowns.splice(index, 1);
             }
         }
 
         //Get reverse P402 link
-        const P402_reverse_array = wdOSMRelReverseLink.get(row['@id']); //need null check?
+        const P402_reverse_array = wdOSMRelReverseLink.get(row['@id']);
         if(P402_reverse_array) {
             row['P402_reverse'] = P402_reverse_array.join(', ');
         }
 
         let processedRow;
 
-        if (row.wikidata) { // Make sure this matches your CSV column name
+        if (row.wikidata) {
             const { P131, P131_name, wikidata_names, P402, P402_count, P31, P31_name } = fetchData(row.wikidata);
             if(P402_count > 1) {
                 flags.push(`Wikidata item points to ${P402_count} different OSM relations`);
@@ -527,7 +529,6 @@ async function processCSV(results, writers, state, CDPs, citiesAndTowns) {
         }
 
         processedRow.wikidata_name = processedRow.wikidata_names.join(';');
-
 
         if(processedRow[`@type`] == "relation") {
             processedRow['@id'] = `r${processedRow['@id']}`;
@@ -545,7 +546,6 @@ async function processCSV(results, writers, state, CDPs, citiesAndTowns) {
                 flags.push("P402 link found");
             }
         } else {
-
             const wdRedirect = checkWikidataRedirect(processedRow.wikidata)
 
             if(wdRedirect) {
@@ -568,7 +568,6 @@ async function processCSV(results, writers, state, CDPs, citiesAndTowns) {
                 if(processedRow['@id'] != processedRow.P402) {
                     flags.push("Mismatched OSM ID");
                 }
-                //Add check for P402 but no wikidata
                 if(processedRow.wikidata != processedRow.P402_reverse) {
                     flags.push("Mismatched P402 link");                    
                 }
@@ -582,13 +581,13 @@ async function processCSV(results, writers, state, CDPs, citiesAndTowns) {
             if (!CDP_QID.some(qid => processedRow.P31.includes(qid)) && processedRow.boundary == "census") {
                 flags.push("OSM says CDP but wikidata is missing CDP statement");
             }
-            if (processedRow.boundary == "administrative" && !citiesAndTownsNames.includes(processedRow.name)) {
+            if (processedRow.boundary == "administrative" && !citiesAndTownsNames.includes(normalizedName)) {
                 flags.push(`OSM boundary=administrative ${processedRow.name} is not on the Wikidata <a href="https://zelonewolf.github.io/wikidata-qa/${state.urlName}_citiesAndTowns.html">list</a> of cities and towns`);
             }
-            if(processedRow.boundary == "census" && !CDPs.includes(processedRow.name)) {
+            if(processedRow.boundary == "census" && !CDPs.some(cdp => cleanAndNormalizeString(cdp) === normalizedName)) {
                 flags.push(`OSM boundary=census ${processedRow.name} is not on the census bureau <a href="https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer/2024_gaz_place_${state.fipsCode}.txt">list</a> of CDPs`);
             }
-            if(!isNullOrEmpty(processedRow.admin_level) && processedRow.boundary == "census") { //CDP
+            if(!isNullOrEmpty(processedRow.admin_level) && processedRow.boundary == "census") {
                 flags.push("Census boundary should not have admin_level");
             }
             if(processedRow.wikipedia) {
@@ -597,7 +596,6 @@ async function processCSV(results, writers, state, CDPs, citiesAndTowns) {
                     flags.push(wpFlag);
                 }
             }
-            
         }
 
         validateTags(processedRow, flags);
@@ -628,7 +626,6 @@ async function processCSV(results, writers, state, CDPs, citiesAndTowns) {
     const unfoundCityAndTownData = retrieveWikidataDataInChunks(unfoundCityAndTownQIDs);
 
     unfoundCitiesAndTowns.forEach(city => {
-
         //Get list of duplicates for this city
         const duplicates = duplicateCityNameToQIDs.get(city);
 
@@ -650,8 +647,6 @@ async function processCSV(results, writers, state, CDPs, citiesAndTowns) {
             }
         }
         const cityP31 = P31Values.join('; ');
-
-        // Fetch first name for each P31Values value
         const cityP31_name = P31Values.map(id => getNamesFromWikidata(id)[0]).join('; ');
 
         const thisQID = citiesAndTownsQIDMap.get(city);
@@ -672,7 +667,6 @@ async function processCSV(results, writers, state, CDPs, citiesAndTowns) {
         }
 
         flaggedData.push(finding);
-
     });
 
     await writers.csvWriter.writeRecords(processedData)
@@ -688,7 +682,6 @@ async function processCSV(results, writers, state, CDPs, citiesAndTowns) {
 
     return flaggedData.length;
 }
-
 // Function to check if the Wikipedia link matches
 function checkWikipediaMatch(qid, rawWikipediaTitle) {
 
@@ -721,25 +714,31 @@ function checkWikipediaMatch(qid, rawWikipediaTitle) {
     }
 }
 
+// Use regex to remove diacritic marks (combining characters)
+const diacriticRegex = /[\u0300-\u036f]/g;
+
+// Regex to normalize different types of dashes/hyphens to standard hyphen
+const dashRegex = /[\u2010-\u2015\u2212\u2043\u002D]/g;
+
+
+function cleanAndNormalizeString(str) {
+    if (!str) return '';
+    
+    return str.normalize("NFD")
+             .replace(diacriticRegex, "")
+             .replace(dashRegex, "-");
+}
+
 function matchStringsIgnoringDiacritics(arr1, arr2) {
     if (!Array.isArray(arr1) || !Array.isArray(arr2)) {
         return false;
     }
 
-    // Use regex to remove diacritic marks (combining characters)
-    const regex = /[\u0300-\u036f]/g;
-
     // Clean and normalize each string in first array
-    const cleanArr1 = arr1.map(str => {
-        if (!str) return '';
-        return str.normalize("NFD").replace(regex, "");
-    });
+    const cleanArr1 = arr1.map(cleanAndNormalizeString);
 
-    // Clean and normalize each string in second array
-    const cleanArr2 = arr2.map(str => {
-        if (!str) return '';
-        return str.normalize("NFD").replace(regex, "");
-    });
+    // Clean and normalize each string in second array 
+    const cleanArr2 = arr2.map(cleanAndNormalizeString);
 
     // Check if any strings match between the arrays
     return cleanArr1.some(str1 => 
