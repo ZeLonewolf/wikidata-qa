@@ -60,7 +60,6 @@ async function getCitiesAndTownsInState(qid) {
 async function queryWikidata(query) {
     const endpoint = 'https://query.wikidata.org/sparql';
     const fullUrl = endpoint + '?query=' + encodeURIComponent(query);
-    
     const response = await fetch(fullUrl, {
         headers: {
             'Accept': 'application/sparql-results+json',
