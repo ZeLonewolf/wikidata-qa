@@ -92,7 +92,11 @@ function validateTags(row, flags) {
 
         for (const [tag, property] of Object.entries(tagPropertyPairs)) {
             if (row[tag] && claims) {
-                const wikidataValues = claims[property] ? claims[property].map(claim => claim.value) : [];
+                // Extract the text values from the monolingualtext objects
+                const wikidataValues = claims[property] ? claims[property].map(claim => 
+                    claim.mainsnak.datavalue.value.text
+                ) : [];
+                
                 if (!wikidataValues.includes(row[tag])) {
                     flags.push(`${tag}=${row[tag]} does not match Wikidata ${property} value`);
                 }
@@ -202,6 +206,11 @@ function cacheWikidataData(qids, cacheClaimsFunction, cacheNamesFunction, cacheS
                     if (cacheAliasesFunction) {
                         let aliases = data.entities[qid].aliases || {};
 
+                        // Initialize aliases.en if it doesn't exist
+                        if (!aliases.en) {
+                            aliases.en = [];
+                        }
+
                         // Also allow the OSM name to be the official name
                         // Resolves, e.g., Town of XYZ, New York
                         if (data.entities[qid].claims?.P1448) {
@@ -209,15 +218,15 @@ function cacheWikidataData(qids, cacheClaimsFunction, cacheNamesFunction, cacheS
                                 .filter(claim => claim.mainsnak?.datavalue?.value?.text)
                                 .map(claim => claim.mainsnak.datavalue.value.text);
                             
-                            // Initialize aliases.en if it doesn't exist
-                            if (!aliases.en) {
-                                aliases.en = [];
-                            }
-                            
-                            // Add each official name as an alias
+                            // Add each official name as an alias with language tag
                             officialNames.forEach(name => {
-                                aliases.en.push({value: name});
+                                aliases.en.push({language: 'en', value: name});
                             });
+
+                            //DEBUG: if any of the official names contains "Athens", print the whole aliases object
+                            if (officialNames.some(name => name.includes("Athens"))) {
+                                console.log(`Aliases for ${qid}:`, aliases);
+                            }
                         }
                         cacheAliasesFunction(qid, aliases);
                     }
