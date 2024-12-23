@@ -405,7 +405,7 @@ function isNullOrEmpty(value) {
     return value === null || value === undefined || value === '';
 }
 
-async function boundaryCheck(inputCSV, outputCSV, state, CDPs, citiesAndTowns) {
+async function boundaryCheck(inputCSV, outputCSV, state, censusPlaces, citiesAndTowns) {
 
     const outputIssuesCSV = outputCSV.replace('.csv', '_flagged.csv');
     const outputP402CSV = outputCSV.replace('.csv', '_P402_entry.csv.txt');
@@ -443,7 +443,7 @@ async function boundaryCheck(inputCSV, outputCSV, state, CDPs, citiesAndTowns) {
         skip_empty_lines: true
     });
 
-    return await processCSV(results, writers, state, CDPs, citiesAndTowns);
+    return await processCSV(results, writers, state, censusPlaces, citiesAndTowns);
 }
 
 function simplifyWDNames(names) {
@@ -473,7 +473,7 @@ function getClaimWDQIDsForLookup() {
 
     return Array.from(distinctQIDs);
 }
-async function processCSV(results, writers, state, CDPs, citiesAndTowns) {
+async function processCSV(results, writers, state, censusPlaces, citiesAndTowns) {
     const processedData = [];
     const flaggedData = [];
     const quickStatementsP402 = [];
@@ -516,7 +516,11 @@ async function processCSV(results, writers, state, CDPs, citiesAndTowns) {
         }
     }
 
-    let unfoundCDPs = [...CDPs];
+    let unfoundCDPs = [...censusPlaces.cdps];
+    let unfoundCensusCities = [...censusPlaces.cities];
+    let unfoundCensusTowns = [...censusPlaces.towns];
+    let unfoundCensusVillages = [...censusPlaces.villages];
+
     const citiesAndTownsQIDMap = new Map(citiesAndTowns.map(entry => [
         cleanAndNormalizeString(entry.cityLabel.value),
         entry.city.value.replace('http://www.wikidata.org/entity/', '')
@@ -543,9 +547,28 @@ async function processCSV(results, writers, state, CDPs, citiesAndTowns) {
                 unfoundCDPs.splice(index, 1);
             }
         } else if(row['boundary'] == 'administrative') {
-            let index = unfoundCitiesAndTowns.findIndex(item => item === normalizedName);
+            // Check unfoundCitiesAndTowns
+            let index = unfoundCitiesAndTowns.findIndex(item => cleanAndNormalizeString(item) === normalizedName);
             if (index !== -1) {
                 unfoundCitiesAndTowns.splice(index, 1);
+            }
+
+            // Check unfoundCensusCities
+            index = unfoundCensusCities.findIndex(item => cleanAndNormalizeString(item) === normalizedName);
+            if (index !== -1) {
+                unfoundCensusCities.splice(index, 1);
+            }
+
+            // Check unfoundCensusTowns  
+            index = unfoundCensusTowns.findIndex(item => cleanAndNormalizeString(item) === normalizedName);
+            if (index !== -1) {
+                unfoundCensusTowns.splice(index, 1);
+            }
+
+            // Check unfoundCensusVillages
+            index = unfoundCensusVillages.findIndex(item => cleanAndNormalizeString(item) === normalizedName);
+            if (index !== -1) {
+                unfoundCensusVillages.splice(index, 1);
             }
         }
 
@@ -623,7 +646,7 @@ async function processCSV(results, writers, state, CDPs, citiesAndTowns) {
             if (processedRow.boundary == "administrative" && !citiesAndTownsNames.includes(normalizedName)) {
                 flags.push(`OSM boundary=administrative ${processedRow.name} is not on the Wikidata <a href="https://zelonewolf.github.io/wikidata-qa/${state.urlName}_citiesAndTowns.html">list</a> of cities and towns`);
             }
-            if(processedRow.boundary == "census" && !CDPs.some(cdp => cleanAndNormalizeString(cdp) === normalizedName)) {
+            if(processedRow.boundary == "census" && !censusPlaces.cdps.some(cdp => cleanAndNormalizeString(cdp) === normalizedName)) {
                 flags.push(`OSM boundary=census ${processedRow.name} is not on the census bureau <a href="https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer/2024_gaz_place_${state.fipsCode}.txt">list</a> of CDPs`);
             }
             if(!isNullOrEmpty(processedRow.admin_level) && processedRow.boundary == "census") {
@@ -660,7 +683,34 @@ async function processCSV(results, writers, state, CDPs, citiesAndTowns) {
             }
         )    
     );
-    
+
+    unfoundCensusCities.forEach(city =>
+        flaggedData.push(
+            {
+                name: city,
+                flags: [`${city} (city) is missing as a boundary=administrative from OSM but is listed on the Census Bureau <a href="https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer/2024_gaz_place_${state.fipsCode}.txt">list</a> of cities`]
+            }
+        )    
+    );
+
+    unfoundCensusTowns.forEach(town =>
+        flaggedData.push(
+            {
+                name: town,
+                flags: [`${town} (town) is missing as a boundary=administrative from OSM but is listed on the Census Bureau <a href="https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer/2024_gaz_place_${state.fipsCode}.txt">list</a> of towns`]
+            }
+        )    
+    );
+
+    unfoundCensusVillages.forEach(village =>
+        flaggedData.push(
+            {
+                name: village,
+                flags: [`${village} (village) is missing as a boundary=administrative from OSM but is listed on the Census Bureau <a href="https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer/2024_gaz_place_${state.fipsCode}.txt">list</a> of villages`]
+            }
+        )    
+    );
+
     const unfoundCityAndTownQIDs = unfoundCitiesAndTowns.map(city => citiesAndTownsQIDMap.get(city));
     const unfoundCityAndTownData = retrieveWikidataDataInChunks(unfoundCityAndTownQIDs);
 
