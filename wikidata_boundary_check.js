@@ -637,6 +637,22 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
             if (processedRow.P31.includes('Q1093829') && processedRow.border_type !== 'city') {
                 flags.push("Wikidata instance of city (Q1093829) but border_type is not city");
             }
+            if (processedRow.boundary == "administrative") {
+                const normalizedPlaceName = cleanAndNormalizeString(processedRow.name);
+                if (censusPlaces.cities.some(city => cleanAndNormalizeString(city) === normalizedPlaceName)) {
+                    if (processedRow.border_type !== 'city') {
+                        flags.push(`${processedRow.name} is on Census Bureau city list but border_type is not 'city'`);
+                    }
+                } else if (censusPlaces.towns.some(town => cleanAndNormalizeString(town) === normalizedPlaceName)) {
+                    if (processedRow.border_type !== 'town') {
+                        flags.push(`${processedRow.name} is on Census Bureau town list but border_type is not 'town'`);
+                    }
+                } else if (censusPlaces.villages.some(village => cleanAndNormalizeString(village) === normalizedPlaceName)) {
+                    if (processedRow.border_type !== 'village') {
+                        flags.push(`${processedRow.name} is on Census Bureau village list but border_type is not 'village'`);
+                    }
+                }
+            }
             if (CDP_QID.some(qid => processedRow.P31.includes(qid)) && processedRow.boundary == "administrative") {
                 flags.push("Wikidata says CDP/unincorporated, OSM says admin boundary");
             }
