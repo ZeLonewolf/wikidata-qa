@@ -412,12 +412,16 @@ async function boundaryCheck(inputCSV, outputCSV, state, censusPlaces, citiesAnd
 
     const csvWriter = createObjectCsvWriter({
         path: outputCSV,
-        header: csvHeader
+        header: csvHeader,
+        fieldDelimiter: ',',
+        quote: '"'
     });
 
     const csvIssuesWriter = createObjectCsvWriter({
         path: outputIssuesCSV,
-        header: csvHeader
+        header: csvHeader,
+        fieldDelimiter: ',',
+        quote: '"'
     });
 
     const P402Writer = createObjectCsvWriter({
