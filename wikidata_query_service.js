@@ -18,31 +18,25 @@ async function getStateQID(relationId) {
 }
 
 function getCitiesAndTownsInStateQuery(qid) {
-
     return `SELECT DISTINCT ?city ?cityLabel WHERE {
-        # Ensure the entity is a admin entity or any of its subclasses
+        # Ensure the entity is an admin entity or its subclasses
         VALUES ?cityClass { wd:Q852446 }
-        ?city wdt:P31/wdt:P279* ?cityClass.       
-    
+        ?city wdt:P31/wdt:P279* ?cityClass.
+        
         # Exclude other types of districts
-        FILTER NOT EXISTS {
+        MINUS {
             ?city wdt:P31/wdt:P279* ?excludedClass.
             VALUES ?excludedClass { ${nonAdminQIDs().map(qid => `wd:${qid}`).join(' ')} }
         }
 
-        # Exclude counties or county equivalents, but allow consolidated city-counties
-        FILTER NOT EXISTS {
+        # Exclude counties or equivalents, unless consolidated city-counties
+        MINUS {
             ?city wdt:P31/wdt:P279* wd:Q13360155.
-            FILTER NOT EXISTS {
-                ?city wdt:P31/wdt:P279* wd:Q3301053.
-            }
+            MINUS { ?city wdt:P31/wdt:P279* wd:Q3301053. }
         }
         
-        # Traverse up to 3 levels of administrative divisions to ensure the city is within this state
-        ?city (wdt:P131
-              | wdt:P131/wdt:P131
-              | wdt:P131/wdt:P131/wdt:P131
-              | wdt:P131/wdt:P131/wdt:P131/wdt:P131) wd:${qid}.
+        # Traverse administrative divisions to ensure the city is within this state
+        ?city (wdt:P131|wdt:P131/wdt:P131|wdt:P131/wdt:P131/wdt:P131) wd:${qid}.
 
         # Retrieve labels in the preferred language
         SERVICE wikibase:label { 
