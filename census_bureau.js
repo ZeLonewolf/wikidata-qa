@@ -57,7 +57,21 @@ function getStateFipsCode(stateName) {
     return stateFipsCodes[stateName] || 'Unknown';
 }
 
-async function getCDPs(state) {
+const lsadTypes = {
+  '25': 'cities',
+  '43': 'towns',
+  '47': 'villages',
+  '57': 'cdps',
+};
+
+const lsadSuffixes = {
+  '25': 'city',
+  '43': 'town',
+  '47': 'village',
+  '57': 'CDP',
+};
+
+async function getCensusPlaces(state) {
   const url = `https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer/2024_gaz_place_${state.fipsCode}.txt`;
 
   try {
@@ -66,18 +80,40 @@ async function getCDPs(state) {
 
     // Split into rows and process as tab-delimited
     const rows = rawData.split('\n')
-                       .map(line => line.split('\t'));
+                       .map(line => line.split('\t'))
+                       .slice(1); // Skip header row
 
-    // Skip header row and filter for CDPs
-    const cdpList = rows.slice(1)
-                       .filter(row => row[4] === '57') // CDP type is in 3rd column
-                       .map(row => row[3].replace(/ CDP$/, '')); // Place name is in 4th column, remove CDP suffix
+    // Initialize result object with all lsadTypes values
+    const places = Object.values(lsadTypes).reduce((acc, type) => {
+      acc[type] = [];
+      return acc;
+    }, {});
 
-    return cdpList;
+    // Process rows and categorize by LSAD type
+    rows.forEach(row => {
+      if (!row[3] || !row[4]) return; // Skip empty/malformed rows
+      
+      const name = row[3];
+      const lsadType = row[4];
+
+      if (lsadTypes[lsadType]) {
+        const placeType = lsadTypes[lsadType];
+        // Remove type suffix from name based on place type
+        const cleanName = name.replace(new RegExp(` ${lsadSuffixes[lsadType]}$`, 'i'), '');
+        places[placeType].push(cleanName);
+      }
+    });
+
+    return places;
+
   } catch (error) {
     console.error('Error fetching data:', error);
-    return []; // Return an empty array in case of an error
+    // Return empty arrays for all place types
+    return Object.values(lsadTypes).reduce((acc, type) => {
+      acc[type] = [];
+      return acc;
+    }, {});
   }
 }
 
-module.exports = { getCDPs, getStateFipsCode }
+module.exports = { getCensusPlaces, getStateFipsCode }
