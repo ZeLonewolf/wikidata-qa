@@ -222,11 +222,6 @@ function cacheWikidataData(qids, cacheClaimsFunction, cacheNamesFunction, cacheS
                             officialNames.forEach(name => {
                                 aliases.en.push({language: 'en', value: name});
                             });
-
-                            //DEBUG: if any of the official names contains "Athens", print the whole aliases object
-                            if (officialNames.some(name => name.includes("Athens"))) {
-                                console.log(`Aliases for ${qid}:`, aliases);
-                            }
                         }
                         cacheAliasesFunction(qid, aliases);
                     }
