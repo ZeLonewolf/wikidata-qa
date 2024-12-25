@@ -29,12 +29,13 @@ function getCitiesAndTownsInStateQuery(qid) {
             VALUES ?excludedClass { ${nonAdminQIDs().map(qid => `wd:${qid}`).join(' ')} }
         }
 
-        # Exclude counties or equivalents, unless consolidated city-counties
+        # Exclude counties or equivalents, unless consolidated city-counties or independent cities
         MINUS {
             ?city wdt:P31/wdt:P279* wd:Q13360155.
-            MINUS { ?city wdt:P31/wdt:P279* wd:Q3301053. }
+            FILTER NOT EXISTS { ?city wdt:P31/wdt:P279* wd:Q3301053. } # Consolidated city-counties
+            FILTER NOT EXISTS { ?city wdt:P31/wdt:P279* wd:Q1266818. } # Independent cities
         }
-        
+
         # Traverse administrative divisions to ensure the city is within this state
         ?city (wdt:P131|wdt:P131/wdt:P131|wdt:P131/wdt:P131/wdt:P131) wd:${qid}.
 
@@ -47,6 +48,7 @@ function getCitiesAndTownsInStateQuery(qid) {
 
 async function getCitiesAndTownsInState(qid) {
     let query = getCitiesAndTownsInStateQuery(qid);
+    console.log(`====================\n${query}\n====================`);
     let results = await queryWikidata(query);
     return results;
 }
