@@ -31,8 +31,9 @@ out skel qt;
 
 ## Useful JOSM queries
 
-To find boundary relations that have both a label and a (redundant) place node, use the following JOSM query (Ctrl+F to find it):
+To find boundary relations that have both a label and a (redundant) place node, use the following JOSM query examples (Ctrl+F to find it):
 
 ```
 type:relation boundary=census place=* hasRole:label
+type:relation boundary=administrative admin_level=8 place=* hasRole:label
 ```
