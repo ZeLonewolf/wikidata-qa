@@ -6,16 +6,25 @@ async function saveBoundariesWithinToCSV(osmRelationID) {
     console.log(`Query overpass for boundaries within r${osmRelationID}`);
     const overpassUrl = 'http://overpass-api.de/api/interpreter';
     const relationid = Number(osmRelationID) + 3600000000;
-    const query = `[timeout:180][out:csv(::id,::type,type,wikidata,wikipedia,admin_level,boundary,name,"name:en",fixme,alt_name,official_name,short_name,place,border_type;true;',')];
-        area(id:${relationid})->.a;
-        (
-          rel[boundary=administrative][admin_level~"^7|8|9$"](area.a);
-          rel[boundary=administrative][admin_level=6][border_type~city](area.a);
-          way[boundary=administrative][admin_level~"^7|8|9$"](if:is_closed())(area.a);
-          rel[boundary=census][border_type!=unorganized_territory](area.a);
-          rel[type=boundary][!boundary](area.a);
-        );
-        out;`;
+    const query =
+`[timeout:180][out:csv(::id,::type,type,wikidata,wikipedia,admin_level,boundary,name,"name:en",fixme,alt_name,official_name,short_name,place,border_type,count_admin_centre;true;',')];
+area(id:${relationid})->.a;
+(
+  rel[boundary=administrative][admin_level~"^7|8|9$"](area.a);
+  rel[boundary=administrative][admin_level=6][border_type~city](area.a);
+  rel[boundary=census][border_type!=unorganized_territory](area.a);
+  rel[type=boundary][!boundary](area.a);
+);
+
+convert relation ::=::, ::id=id(),
+    count_admin_centre=count_by_role("admin_centre");
+
+(
+  ._;
+  way[boundary=administrative][admin_level~"^7|8|9$"](if:is_closed())(area.a);
+);
+
+out;`;
     console.log(query);
     try {
         const response = await axios.post(overpassUrl, qs.stringify({ data: query }), {

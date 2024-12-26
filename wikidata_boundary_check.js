@@ -657,6 +657,9 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
                     }
                 }
             }
+            if (processedRow.count_admin_centre > 0) {
+                flags.push(`Relation has an admin_centre member, which is incorrect for a municipality`);
+            }
             if (CDP_QID.some(qid => processedRow.P31.includes(qid)) && processedRow.boundary == "administrative") {
                 flags.push("Wikidata says CDP/unincorporated, OSM says admin boundary");
             }
