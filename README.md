@@ -37,3 +37,7 @@ To find boundary relations that have both a label and a (redundant) place node, 
 type:relation boundary=census place=* hasRole:label
 type:relation boundary=administrative admin_level=8 place=* hasRole:label
 ```
+
+## Scripts
+
+- `admin2label.js` - Change admin_centre relation roles to label. Command line argument is the path to an OSM file.
