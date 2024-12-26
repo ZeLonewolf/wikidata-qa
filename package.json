@@ -5,6 +5,7 @@
     "csv-writer": "^1.6.0",
     "papaparse": "^5.4.1",
     "qs": "^6.13.1",
-    "sync-request": "^6.1.0"
+    "sync-request": "^6.1.0",
+    "xml2js": "^0.6.2"
   }
 }
