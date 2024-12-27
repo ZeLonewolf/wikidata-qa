@@ -88,18 +88,28 @@ function validateTags(row, flags) {
      * Check if OSM tags match corresponding Wikidata properties. 
      * These tag/property pairs should be both present or both absent, otherwise a finding is flagged.
      */
-
     const qid = row.wikidata;
 
     if(qid) {
         const claims = wdClaimsCache.get(qid);
 
         for (const [tag, property] of Object.entries(tagPropertyPairs)) {
-            if (row[tag] && claims) {
-                // Extract the text values from the monolingualtext objects
-                const wikidataValues = claims[property] ? claims[property].map(claim => 
+            const hasOsmTag = !isNullOrEmpty(row[tag]);
+            const hasWikidataProperty = claims && claims[property]?.length > 0;
+
+            // Flag if one exists without the other
+            if (hasOsmTag !== hasWikidataProperty) {
+                if (hasOsmTag) {
+                    flags.push(`${tag} exists in OSM but no ${property} in Wikidata`);
+                } else {
+                    flags.push(`${property} exists in Wikidata but no ${tag} in OSM`);
+                }
+            }
+            // If both exist, check if values match
+            else if (hasOsmTag && hasWikidataProperty) {
+                const wikidataValues = claims[property].map(claim => 
                     claim.mainsnak.datavalue.value.text
-                ) : [];
+                );
                 
                 if (!wikidataValues.includes(row[tag])) {
                     flags.push(`${tag}=${row[tag]} does not match Wikidata ${property} value`);
