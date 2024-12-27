@@ -102,7 +102,7 @@ function validateTags(row, flags) {
                 if (hasOsmTag) {
                     flags.push(`${tag} exists in OSM but no ${property} in Wikidata`);
                 } else {
-                    flags.push(`${property} exists in Wikidata but no ${tag} in OSM`);
+                    flags.push(`${property} exists in Wikidata but no ${tag} in OSM. Use <code>node tagspark.js <osm-file> ${property} ${tag}</code> to copy this value to OSM.`);
                 }
             }
             // If both exist, check if values match
