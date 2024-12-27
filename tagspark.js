@@ -15,36 +15,49 @@ if (!osmFilePath || !propertyId || !destTag) {
 // Cache for Wikidata API results
 const wikidataCache = new Map();
 
-async function getWikidataValue(qid, propertyId) {
-    if (wikidataCache.has(qid)) {
-        return wikidataCache.get(qid);
+async function getWikidataValues(qids, propertyId) {
+    // Filter out QIDs we already have cached
+    const uncachedQids = qids.filter(qid => !wikidataCache.has(qid));
+    
+    if (uncachedQids.length === 0) {
+        return qids.map(qid => wikidataCache.get(qid));
     }
 
     try {
         const response = await axios.get(`https://www.wikidata.org/w/api.php`, {
             params: {
-                action: 'wbgetclaims',
-                property: propertyId,
-                entity: qid,
+                action: 'wbgetentities',
+                ids: uncachedQids.join('|'),
+                props: 'claims',
                 format: 'json'
             }
         });
 
-        const claims = response.data.claims[propertyId];
-        if (!claims || claims.length === 0) {
-            wikidataCache.set(qid, null);
-            return null;
+        const entities = response.data.entities;
+        
+        // Process and cache results
+        for (const qid of uncachedQids) {
+            const claims = entities[qid]?.claims?.[propertyId];
+            if (!claims || claims.length === 0) {
+                wikidataCache.set(qid, null);
+                continue;
+            }
+
+            const value = claims[0].mainsnak.datavalue?.value;
+            if (typeof value === 'object' && value.text) {
+                wikidataCache.set(qid, value.text);
+            } else {
+                wikidataCache.set(qid, value);
+            }
         }
 
-        // Get the first value - assumes string/text value
-        const value = claims[0].mainsnak.datavalue?.value;
-        wikidataCache.set(qid, value);
-        return value;
-
     } catch (error) {
-        console.error(`Error fetching Wikidata for ${qid}:`, error.message);
-        return null;
+        console.error(`Error fetching Wikidata batch:`, error.message);
+        // Cache failures as null
+        uncachedQids.forEach(qid => wikidataCache.set(qid, null));
     }
+
+    return qids.map(qid => wikidataCache.get(qid));
 }
 
 fs.readFile(osmFilePath, 'utf8', async (err, data) => {
@@ -58,20 +71,34 @@ fs.readFile(osmFilePath, 'utf8', async (err, data) => {
         const result = await parser.parseStringPromise(data);
         let modified = false;
 
-        // Process all types of OSM elements
+        // First collect all QIDs
+        const elementQids = [];
+        const elementsByQid = new Map();
+
         for (const elementType of ['node', 'way', 'relation']) {
             const elements = result.osm[elementType] || [];
             
             for (const element of elements) {
                 const tags = element.tag || [];
-                
-                // Find wikidata tag
                 const wikidataTag = tags.find(tag => tag.$.k === 'wikidata');
                 if (!wikidataTag) continue;
 
                 const qid = wikidataTag.$.v;
-                const value = await getWikidataValue(qid, propertyId);
-                
+                elementQids.push(qid);
+                elementsByQid.set(qid, {element, tags, elementType});
+            }
+        }
+
+        // Process QIDs in batches of 50
+        for (let i = 0; i < elementQids.length; i += 50) {
+            const batchQids = elementQids.slice(i, i + 50);
+            const values = await getWikidataValues(batchQids, propertyId);
+
+            for (let j = 0; j < batchQids.length; j++) {
+                const qid = batchQids[j];
+                const value = values[j];
+                const {element, tags, elementType} = elementsByQid.get(qid);
+
                 if (!value) continue;
 
                 // Check if dest tag already exists
