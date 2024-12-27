@@ -41,3 +41,4 @@ type:relation boundary=administrative admin_level=8 place=* hasRole:label
 ## Scripts
 
 - `admin2label.js` - Change admin_centre relation roles to label. Command line argument is the path to an OSM file.
+- `tagcp.js` - Copy a tag value from one key to another within relations. Takes source tag, destination tag, and OSM file path as command line arguments.
