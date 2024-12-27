@@ -84,7 +84,11 @@ function validateTags(row, flags) {
         }
     }
 
-    // Check if OSM tags match corresponding Wikidata properties
+    /**
+     * Check if OSM tags match corresponding Wikidata properties. 
+     * These tag/property pairs should be both present or both absent, otherwise a finding is flagged.
+     */
+
     const qid = row.wikidata;
 
     if(qid) {
@@ -541,9 +545,16 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
             row['name'] = row['name:en'];
             delete row['name:en'];
         }
-
-        const normalizedName = cleanAndNormalizeString(row['name']);
-
+        let normalizedName = cleanAndNormalizeString(row['name']);
+        if (row.wikidata && row.official_name) {
+            const claims = wdClaimsCache.get(row.wikidata);
+            if (claims?.P1448?.some(claim => claim.mainsnak?.datavalue?.value?.text === row.official_name)) {
+                // If official name matches P1448, use the main wikidata label
+                const wdLabel = wdCache.get(row.wikidata);
+                normalizedName = cleanAndNormalizeString(wdLabel);
+            }
+        }
+        
         if(row['boundary'] == 'census') {
             //Remove this boundary from un-found list (allows for duplicate names)
             let index = unfoundCDPs.findIndex(item => cleanAndNormalizeString(item) === normalizedName);
