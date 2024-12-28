@@ -47,6 +47,7 @@ async function processState(state) {
     const censusPlaces = await getCensusPlaces(state);
     const citiesAndTowns = await getCitiesAndTownsInStateRelation(state.osmRelationId);
     const stateFile = `output/${state.urlName}.csv`;
+    const stateBulkFile = `output/${state.urlName}_bulk_findings.json`;
     const stateFlaggedFile = `output/${state.urlName}_flagged.csv`;
     console.log(`State: ${state.name}, OSM Relation ID: ${state.osmRelationId}`);
     await saveBoundariesWithinToCSV(state.osmRelationId);
@@ -55,7 +56,7 @@ async function processState(state) {
     const flaggedFindings = await boundaryCheck(`output/${state.osmRelationId}.csv`, stateFile, state, censusPlaces, citiesAndTowns);    
     console.log(`Boundary check complete for ${state.name}, OSM Relation ID: ${state.osmRelationId}`);
     convertCsvToHtml(stateFile, state);
-    convertCsvToHtml(stateFlaggedFile, state);
+    convertCsvToHtml(stateFlaggedFile, state, stateBulkFile);
     console.log(`HTML generation complete for ${state.name}, OSM Relation ID: ${state.osmRelationId}`);
     return flaggedFindings;
 }

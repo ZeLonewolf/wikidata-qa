@@ -13,7 +13,7 @@ function applyOSMAndWikidataLinks(value) {
     return linkedValue;
 }
 
-function convertCsvToHtml(csvFilePath, state) {
+function convertCsvToHtml(csvFilePath, state, bulkFile) {
 
     // Check if the file path is valid
     if (!fs.existsSync(csvFilePath)) {
@@ -52,7 +52,13 @@ function convertCsvToHtml(csvFilePath, state) {
                     <a href="https://overpass-turbo.eu/s/1JzB">border_type Map view (overpass)</a><br />
                     <a href="https://overpass-turbo.eu/s/1FPV">admin_level Map view (overpass)</a><br />
                     <a href="${state.urlName}_P402_entry.csv.txt">P402 Entries</a> for <a href="https://quickstatements.toolforge.org/#/batch">quickstatements</a><br />
-                    <a href="${state.urlName}_citiesAndTowns.html">${state.name} city/town list</a><br />
+                    <a href="${state.urlName}_citiesAndTowns.html">${state.name} city/town list</a><br />`;
+
+                if (bulkFile) {
+                    html += `<a href="#bulk_tools">Jump to bulk edit tools</a><br />`;
+                }
+
+                html += `
                     Findings: <b>${rows.length -1}</b><br />
                     <table border="1">
                 `;
@@ -87,7 +93,30 @@ function convertCsvToHtml(csvFilePath, state) {
                     html += '</tr>';
                 });
 
-                html += '</table></body></html>';
+                html += '</table>';
+
+                // Add bulk findings section if bulkFile exists
+                if (bulkFile && fs.existsSync(bulkFile)) {
+                    const bulkData = JSON.parse(fs.readFileSync(bulkFile, 'utf8'));
+                    if (bulkData && bulkData.length > 0) {
+                        html += `
+                            <h2 id="bulk_tools">Bulk Edit Tools</h2>
+                            <p>The following JOSM filters can be used to identify groups of objects that may need attention:</p>
+                        `;
+                        
+                        bulkData.forEach(filter => {
+                            html += `
+                                <div style="margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px;">
+                                    <h3>${filter.title}</h3>
+                                    <p>${filter.description}</p>
+                                    <pre style="background-color: #f5f5f5; padding: 10px; border-radius: 3px;">${filter.filter}</pre>
+                                </div>
+                            `;
+                        });
+                    }
+                }
+
+                html += '</body></html>';
 
                 // Write HTML file
                 try {
@@ -103,8 +132,6 @@ function convertCsvToHtml(csvFilePath, state) {
         console.error("Error reading the file: ", err);
         return;
     }
-
-
 }
 
 module.exports = { convertCsvToHtml };

@@ -495,6 +495,7 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
     const processedData = [];
     const flaggedData = [];
     const quickStatementsP402 = [];
+    const bulkFindings = [];
 
     const qids = results
         .map(row => row.wikidata)
@@ -546,6 +547,9 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
     const citiesAndTownsNames = citiesAndTowns.map(entry => cleanAndNormalizeString(entry.cityLabel.value));
     let unfoundCitiesAndTowns = [...citiesAndTownsNames];
     let rowCount = 0;
+
+    // Track relation IDs with CDP/unincorporated mismatch
+    let cdpMismatchRelations = [];
 
     for (const row of results) {
         const flags = [];
@@ -683,6 +687,8 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
             }
             if (CDP_QID.some(qid => processedRow.P31.includes(qid)) && processedRow.boundary == "administrative") {
                 flags.push("Wikidata says CDP/unincorporated, OSM says admin boundary");
+                // Add relation ID to list of mismatches
+                cdpMismatchRelations.push(processedRow['@id'].substring(1));
             }
             if (!CDP_QID.some(qid => processedRow.P31.includes(qid)) && processedRow.boundary == "census") {
                 flags.push("OSM says CDP but wikidata is missing CDP statement");
@@ -719,6 +725,15 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
         }
     }
 
+    if (cdpMismatchRelations.length > 0) {
+        const idFilter = cdpMismatchRelations.map(id => `id:${id}`).join(' OR ');
+        bulkFindings.push({
+            title: "Admin boundaries that might be CDPs",
+            description: "This JOSM filter will highlight admin boundaries that might be CDPs based on the presence of a wikidata property that indicates a CDP or unincorporated community.", 
+            filter: `type:relation (${idFilter})`
+        });
+    }
+    
     unfoundCDPs.forEach(cdp =>
         flaggedData.push(
             {
@@ -811,6 +826,11 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
     if(quickStatementsP402.length > 0) {
         await writers.P402Writer.writeRecords(quickStatementsP402)
             .then(() => console.log('The P402 CSV file was written successfully'));
+    }
+
+    // Write bulk findings to JSON file if there are any
+    if (bulkFindings.length > 0) {
+        fs.writeFileSync(`output/${state.urlName}_bulk_findings.json`, JSON.stringify(bulkFindings, null, 2));
     }
 
     return flaggedData.length;
