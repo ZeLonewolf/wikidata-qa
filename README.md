@@ -41,3 +41,4 @@ type:relation boundary=administrative admin_level=8 place=* hasRole:label
 ## Scripts
 
 - `admin2label.js` - Change admin_centre relation roles to label. Command line argument is the path to an OSM file.
+- `tagspark.js` - Copies values from a specified Wikidata property to a specified OSM tag. Takes an OSM file path, a Wikidata property ID, and an OSM tag key as arguments.
