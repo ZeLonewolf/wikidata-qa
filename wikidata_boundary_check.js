@@ -545,6 +545,72 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
         entry.city.value.replace('http://www.wikidata.org/entity/', '')
     ]));
     const citiesAndTownsNames = citiesAndTowns.map(entry => cleanAndNormalizeString(entry.cityLabel.value));
+    // Get all labels (main + alternate) for cities and towns from wikidata
+    const altCitiesAndTownsNames = new Set();
+    // Map alternate names back to their canonical names
+    const altToCanonicalNames = new Map();
+
+    for (const entry of citiesAndTowns) {
+        const qid = entry.city.value.replace('http://www.wikidata.org/entity/', '');
+        const canonicalName = cleanAndNormalizeString(entry.cityLabel.value);
+        const allLabels = wdCache.get(qid);
+        
+        if (allLabels) {
+            const normalizedLabel = cleanAndNormalizeString(allLabels);
+            altCitiesAndTownsNames.add(normalizedLabel);
+            
+            if (!altToCanonicalNames.has(normalizedLabel)) {
+                altToCanonicalNames.set(normalizedLabel, new Set());
+            }
+            altToCanonicalNames.get(normalizedLabel).add(canonicalName);
+
+            // Get any alternate labels
+            const claims = wdClaimsCache.get(qid);
+            const aliases = wdAliasesCache.get(qid);
+            
+            // Add aliases
+            if (aliases?.en) {
+                aliases.en.forEach(alias => {
+                    const normalizedAlias = cleanAndNormalizeString(alias.value);
+                    altCitiesAndTownsNames.add(normalizedAlias);
+                    if (!altToCanonicalNames.has(normalizedAlias)) {
+                        altToCanonicalNames.set(normalizedAlias, new Set());
+                    }
+                    altToCanonicalNames.get(normalizedAlias).add(canonicalName);                    
+                });
+            }
+
+            if (claims) {
+                // Add official names (P1448)
+                if (claims.P1448) {
+                    claims.P1448.forEach(claim => {
+                        if (claim.mainsnak?.datavalue?.value?.text) {
+                            const normalizedText = cleanAndNormalizeString(claim.mainsnak.datavalue.value.text);
+                            altCitiesAndTownsNames.add(normalizedText);
+                            if (!altToCanonicalNames.has(normalizedText)) {
+                                altToCanonicalNames.set(normalizedText, new Set());
+                            }
+                            altToCanonicalNames.get(normalizedText).add(canonicalName);
+                        }
+                    });
+                }
+                // Add short names (P1813)
+                if (claims.P1813) {
+                    claims.P1813.forEach(claim => {
+                        if (claim.mainsnak?.datavalue?.value?.text) {
+                            const normalizedText = cleanAndNormalizeString(claim.mainsnak.datavalue.value.text);
+                            altCitiesAndTownsNames.add(normalizedText);
+                            if (!altToCanonicalNames.has(normalizedText)) {
+                                altToCanonicalNames.set(normalizedText, new Set());
+                            }
+                            altToCanonicalNames.get(normalizedText).add(canonicalName);
+                        }
+                    });
+                }
+            }
+        }
+    }
+    
     let unfoundCitiesAndTowns = [...citiesAndTownsNames];
     let rowCount = 0;
 
@@ -576,12 +642,17 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
                 unfoundCDPs.splice(index, 1);
             }
         } else if(row['boundary'] == 'administrative') {
-            // Check unfoundCitiesAndTowns
-            let index = unfoundCitiesAndTowns.findIndex(item => cleanAndNormalizeString(item) === normalizedName);
+            // Check unfoundCitiesAndTowns for direct matches and canonical name mappings
+            // This is a more complex check because we need to account for alternate names
+            let index = unfoundCitiesAndTowns.findIndex(item => {
+                const cleanItem = cleanAndNormalizeString(item);
+                return cleanItem === normalizedName || 
+                       (altToCanonicalNames.has(cleanItem) && 
+                        altToCanonicalNames.get(cleanItem).has(normalizedName));
+            });
             if (index !== -1) {
                 unfoundCitiesAndTowns.splice(index, 1);
             }
-
             // Check unfoundCensusCities
             index = unfoundCensusCities.findIndex(item => cleanAndNormalizeString(item) === normalizedName);
             if (index !== -1) {
@@ -693,8 +764,15 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
             if (!CDP_QID.some(qid => processedRow.P31.includes(qid)) && processedRow.boundary == "census") {
                 flags.push("OSM says CDP but wikidata is missing CDP statement");
             }
-            if (processedRow.boundary == "administrative" && !citiesAndTownsNames.includes(normalizedName)) {
-                flags.push(`OSM boundary=administrative ${processedRow.name} is not on the Wikidata <a href="https://zelonewolf.github.io/wikidata-qa/${state.urlName}_citiesAndTowns.html">list</a> of cities and towns`);
+            if (processedRow.boundary == "administrative" && 
+                !citiesAndTownsNames.includes(normalizedName) && 
+                !altCitiesAndTownsNames.has(normalizedName)) {
+                
+                flags.push(`
+                    OSM boundary=administrative ${processedRow.name} is not on the Wikidata 
+                    <a href="https://zelonewolf.github.io/wikidata-qa/${state.urlName}_citiesAndTowns.html">list</a>
+                    of cities and towns
+                `);
             }
             if(processedRow.boundary == "census" && !censusPlaces.cdps.some(cdp => cleanAndNormalizeString(cdp) === normalizedName)) {
                 flags.push(`OSM boundary=census ${processedRow.name} is not on the census bureau <a href="https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer/2024_gaz_place_${state.fipsCode}.txt">list</a> of CDPs`);
