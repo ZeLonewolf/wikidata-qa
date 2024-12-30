@@ -2,6 +2,7 @@ const fs = require('fs');
 const request = require('sync-request');
 const { createObjectCsvWriter } = require('csv-writer');
 const { parse } = require('csv-parse/sync');
+const { matchStringsIgnoringDiacritics, splitFirstCommaComponent, cleanAndNormalizeString } = require('./util-strings');
 
 //QIDs that correspond to a non-admin boundary (CDP, unincorporated)
 const CDP_QID = ["Q498162", "Q56064719", "Q17343829"];
@@ -268,7 +269,7 @@ function getNamesFromWikidata (qid) {
     // Check if the result is in the cache
     if (wdCache.has(qid)) {
         const mainName = wdCache.get(qid);
-        const aliasArray = wdAliasesCache.get(qid)?.en?.map(a => a.value.split(',')[0]) || [];
+        const aliasArray = wdAliasesCache.get(qid)?.en?.map(a => splitFirstCommaComponent(a.value)) || [];
         // Create set with main name and aliases, then convert back to array
         const uniqueNames = new Set([mainName, ...aliasArray]);
         return Array.from(uniqueNames);
@@ -556,7 +557,7 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
         const allLabels = wdCache.get(qid);
         
         if (allLabels) {
-            const normalizedLabel = cleanAndNormalizeString(allLabels);
+            const normalizedLabel = splitFirstCommaComponent(cleanAndNormalizeString(allLabels));
             altCitiesAndTownsNames.add(normalizedLabel);
             
             if (!altToCanonicalNames.has(normalizedLabel)) {
@@ -571,7 +572,7 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
             // Add aliases
             if (aliases?.en) {
                 aliases.en.forEach(alias => {
-                    const normalizedAlias = cleanAndNormalizeString(alias.value);
+                    const normalizedAlias = splitFirstCommaComponent(cleanAndNormalizeString(alias.value));
                     altCitiesAndTownsNames.add(normalizedAlias);
                     if (!altToCanonicalNames.has(normalizedAlias)) {
                         altToCanonicalNames.set(normalizedAlias, new Set());
@@ -610,7 +611,7 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
             }
         }
     }
-    
+
     let unfoundCitiesAndTowns = [...citiesAndTownsNames];
     let rowCount = 0;
 
@@ -943,38 +944,6 @@ function checkWikipediaMatch(qid, rawWikipediaTitle) {
     } else {
         return `${qid} has no wikipedia entry but OSM has ${wikipediaTitle}`;
     }
-}
-
-// Use regex to remove diacritic marks (combining characters)
-const diacriticRegex = /[\u0300-\u036f]/g;
-
-// Regex to normalize different types of dashes/hyphens to standard hyphen
-const dashRegex = /[\u2010-\u2015\u2212\u2043\u002D]/g;
-
-
-function cleanAndNormalizeString(str) {
-    if (!str) return '';
-    
-    return str.normalize("NFD")
-             .replace(diacriticRegex, "")
-             .replace(dashRegex, "-");
-}
-
-function matchStringsIgnoringDiacritics(arr1, arr2) {
-    if (!Array.isArray(arr1) || !Array.isArray(arr2)) {
-        return false;
-    }
-
-    // Clean and normalize each string in first array
-    const cleanArr1 = arr1.map(cleanAndNormalizeString);
-
-    // Clean and normalize each string in second array 
-    const cleanArr2 = arr2.map(cleanAndNormalizeString);
-
-    // Check if any strings match between the arrays
-    return cleanArr1.some(str1 => 
-        cleanArr2.some(str2 => str1 === str2)
-    );
 }
 
 module.exports = { boundaryCheck }
