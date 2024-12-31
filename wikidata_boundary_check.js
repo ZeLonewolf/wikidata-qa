@@ -550,7 +550,6 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
 
     // Track relation IDs with CDP/unincorporated mismatch
     let cdpMismatchRelations = [];
-
     for (const row of results) {
         const flags = [];
 
@@ -559,48 +558,70 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
             row['name'] = row['name:en'];
             delete row['name:en'];
         }
-        let normalizedName = cleanAndNormalizeString(row['name']);
+
+        // Create array of normalized names to check
+        let normalizedNames = [cleanAndNormalizeString(row['name'])];
+        
+        // Add short_name if present
+        if (row.short_name) {
+            normalizedNames.push(cleanAndNormalizeString(row.short_name));
+        }
+
+        // Add official_name if present
+        if (row.official_name) {
+            normalizedNames.push(cleanAndNormalizeString(row.official_name));
+        }
+
+        // Special case: if official_name matches P1448, use wikidata label
         if (row.wikidata && row.official_name) {
             const claims = wdClaimsCache.get(row.wikidata);
             if (claims?.P1448?.some(claim => claim.mainsnak?.datavalue?.value?.text === row.official_name)) {
-                // If official name matches P1448, use the main wikidata label
                 const wdLabel = wdCache.get(row.wikidata);
-                normalizedName = cleanAndNormalizeString(wdLabel);
+                normalizedNames.push(cleanAndNormalizeString(wdLabel));
             }
         }
         
         if(row['boundary'] == 'census') {
-            //Remove this boundary from un-found list (allows for duplicate names)
-            let index = unfoundCDPs.findIndex(item => cleanAndNormalizeString(item) === normalizedName);
+            //Remove this boundary from un-found list if any normalized name matches
+            let index = unfoundCDPs.findIndex(item => 
+                normalizedNames.some(normalizedName => cleanAndNormalizeString(item) === normalizedName)
+            );
             if (index !== -1) {
                 unfoundCDPs.splice(index, 1);
             }
         } else if(row['boundary'] == 'administrative') {
             // Check unfoundCitiesAndTowns for direct matches and canonical name mappings
-            // This is a more complex check because we need to account for alternate names
             let index = unfoundCitiesAndTowns.findIndex(item => {
                 const cleanItem = cleanAndNormalizeString(item);
-                return cleanItem === normalizedName || 
-                       (altToCanonicalNames.has(cleanItem) && 
-                        altToCanonicalNames.get(cleanItem).has(normalizedName));
+                return normalizedNames.some(normalizedName => 
+                    cleanItem === normalizedName || 
+                    (altToCanonicalNames.has(cleanItem) && 
+                     altToCanonicalNames.get(cleanItem).has(normalizedName))
+                );
             });
             if (index !== -1) {
                 unfoundCitiesAndTowns.splice(index, 1);
             }
             // Check unfoundCensusCities
-            index = unfoundCensusCities.findIndex(item => cleanAndNormalizeString(item) === normalizedName);
+            index = unfoundCensusCities.findIndex(item =>
+                normalizedNames.some(normalizedName => cleanAndNormalizeString(item) === normalizedName)
+            );
             if (index !== -1) {
                 unfoundCensusCities.splice(index, 1);
             }
 
             // Check unfoundCensusTowns  
-            index = unfoundCensusTowns.findIndex(item => cleanAndNormalizeString(item) === normalizedName);
+            index = unfoundCensusTowns.findIndex(item =>
+                normalizedNames.some(normalizedName => cleanAndNormalizeString(item) === normalizedName)
+            );
             if (index !== -1) {
                 unfoundCensusTowns.splice(index, 1);
             }
 
             // Check unfoundCensusVillages
-            index = unfoundCensusVillages.findIndex(item => cleanAndNormalizeString(item) === normalizedName);
+            index = unfoundCensusVillages.findIndex(item =>
+                normalizedNames.some(normalizedName => cleanAndNormalizeString(item) === normalizedName)
+            );
             if (index !== -1) {
                 unfoundCensusVillages.splice(index, 1);
             }
@@ -672,20 +693,25 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
                 flags.push("Wikidata instance of city (Q1093829) but border_type is not city");
             }
             if (processedRow.boundary == "administrative") {
-                const normalizedPlaceName = cleanAndNormalizeString(processedRow.name);
-                if (censusPlaces.cities.some(city => cleanAndNormalizeString(city) === normalizedPlaceName)) {
-                    if (processedRow.border_type !== 'city') {
-                        flags.push(`${processedRow.name} is on Census Bureau city list but border_type is not 'city'`);
+                const matchFound = normalizedNames.some(normalizedName => {
+                    if (censusPlaces.cities.some(city => cleanAndNormalizeString(city) === normalizedName)) {
+                        if (processedRow.border_type !== 'city') {
+                            flags.push(`${processedRow.name} is on Census Bureau city list but border_type is not 'city'`);
+                        }
+                        return true;
+                    } else if (censusPlaces.towns.some(town => cleanAndNormalizeString(town) === normalizedName)) {
+                        if (processedRow.border_type !== 'town') {
+                            flags.push(`${processedRow.name} is on Census Bureau town list but border_type is not 'town'`);
+                        }
+                        return true;
+                    } else if (censusPlaces.villages.some(village => cleanAndNormalizeString(village) === normalizedName)) {
+                        if (processedRow.border_type !== 'village') {
+                            flags.push(`${processedRow.name} is on Census Bureau village list but border_type is not 'village'`);
+                        }
+                        return true;
                     }
-                } else if (censusPlaces.towns.some(town => cleanAndNormalizeString(town) === normalizedPlaceName)) {
-                    if (processedRow.border_type !== 'town') {
-                        flags.push(`${processedRow.name} is on Census Bureau town list but border_type is not 'town'`);
-                    }
-                } else if (censusPlaces.villages.some(village => cleanAndNormalizeString(village) === normalizedPlaceName)) {
-                    if (processedRow.border_type !== 'village') {
-                        flags.push(`${processedRow.name} is on Census Bureau village list but border_type is not 'village'`);
-                    }
-                }
+                    return false;
+                });
             }
             if (processedRow.count_admin_centre > 0) {
                 flags.push(`Relation has an admin_centre member, which is incorrect for a municipality`);
@@ -699,16 +725,20 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
                 flags.push("OSM says CDP but wikidata is missing CDP statement");
             }
             if (processedRow.boundary == "administrative" && 
-                !citiesAndTownsNames.includes(normalizedName) && 
-                !altCitiesAndTownsNames.has(normalizedName)) {
-                
+                !normalizedNames.some(normalizedName => 
+                    citiesAndTownsNames.includes(normalizedName) || 
+                    altCitiesAndTownsNames.has(normalizedName)
+                )) {
                 flags.push(`
                     OSM boundary=administrative ${processedRow.name} is not on the Wikidata 
                     <a href="https://zelonewolf.github.io/wikidata-qa/${state.urlName}_citiesAndTowns.html">list</a>
                     of cities and towns
                 `);
             }
-            if(processedRow.boundary == "census" && !censusPlaces.cdps.some(cdp => cleanAndNormalizeString(cdp) === normalizedName)) {
+            if(processedRow.boundary == "census" && 
+               !normalizedNames.some(normalizedName =>
+                   censusPlaces.cdps.some(cdp => cleanAndNormalizeString(cdp) === normalizedName)
+               )) {
                 flags.push(`OSM boundary=census ${processedRow.name} is not on the census bureau <a href="https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer/2024_gaz_place_${state.fipsCode}.txt">list</a> of CDPs`);
             }
             if(!isNullOrEmpty(processedRow.admin_level) && processedRow.boundary == "census") {
@@ -745,7 +775,6 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
             filter: `type:relation (${idFilter})`
         });
     }
-    
     unfoundCDPs.forEach(cdp =>
         flaggedData.push(
             {
