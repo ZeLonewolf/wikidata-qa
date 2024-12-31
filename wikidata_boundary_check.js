@@ -13,6 +13,7 @@ const {
     retrieveWikidataData, 
     fetchOSMIDLinks 
 } = require('./wikidata_query_service');
+const { chunkArray } = require('./util-array');
 
 //QIDs that correspond to a non-admin boundary (CDP, unincorporated)
 const CDP_QID = ["Q498162", "Q56064719", "Q17343829"];
@@ -138,14 +139,6 @@ const wdSitelinksCache = new Map();
 const wdAliasesCache = new Map();
 const wdOSMRelReverseLink = new Map();
 const CHUNK_SIZE = 50;
-
-function chunkArray(array, chunkSize) {
-    const chunks = [];
-    for (let i = 0; i < array.length; i += chunkSize) {
-        chunks.push(array.slice(i, i + chunkSize));
-    }
-    return chunks;
-}
 
 function retrieveWikidataDataInChunks(qids) {
     const chunkedQids = chunkArray(qids, CHUNK_SIZE);
