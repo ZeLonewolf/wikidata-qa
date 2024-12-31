@@ -1,4 +1,5 @@
 const { nonAdminQIDs } = require('./non_admin_entities');
+const request = require('sync-request');
 
 function getStateQIDQuery(relationId) {
     return `SELECT ?state ?stateLabel WHERE {
@@ -48,7 +49,6 @@ function getCitiesAndTownsInStateQuery(qid) {
 
 async function getCitiesAndTownsInState(qid) {
     let query = getCitiesAndTownsInStateQuery(qid);
-    console.log(`====================\n${query}\n====================`);
     let results = await queryWikidata(query);
     return results;
 }
@@ -66,7 +66,6 @@ async function queryWikidata(query) {
     if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
     }
-    console.log(`====================\n${query}\n====================`);
     const data = await response.json();
     return data.results.bindings;
 }
@@ -76,4 +75,23 @@ async function getCitiesAndTownsInStateRelation(relationId) {
     return await getCitiesAndTownsInState(qid);
 }
 
-module.exports = { getCitiesAndTownsInStateRelation }
+
+function retrieveWikidataData(qids) {
+    try {
+        const res = request('GET', `https://www.wikidata.org/w/api.php`, {
+            qs: {
+                action: 'wbgetentities',
+                ids: qids.join('|'),
+                props: 'claims|labels|sitelinks|aliases',
+                languages: 'en', // Only necessary for labels
+                format: 'json'
+            }
+        });
+        return JSON.parse(res.getBody('utf8'));
+    } catch (error) {
+        console.error(`General error fetching data for a list of QIDs:`, error);
+        return {};
+    }
+}
+
+module.exports = { getCitiesAndTownsInStateRelation, retrieveWikidataData }

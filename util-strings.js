@@ -33,4 +33,25 @@ function splitFirstCommaComponent(str) {
     return str.split(',')[0].trim();
 }
 
-module.exports = { matchStringsIgnoringDiacritics, cleanAndNormalizeString, splitFirstCommaComponent }
+function expandAbbreviations(texts) {
+    if (!Array.isArray(texts)) {
+        return [];
+    }
+    const abbreviations = {
+            "St.": "Saint",
+            "Ste.": "Sainte"
+            //Add other cases here
+    };
+    return texts.map(text => {
+        if (isNullOrEmpty(text)) {
+            return text;
+        }
+        return text.replace(new RegExp(Object.keys(abbreviations).join("|"), 'g'), matched => abbreviations[matched]);
+    });
+}
+
+function isNullOrEmpty(value) {
+    return value === null || value === undefined || value === '';
+}
+
+module.exports = { matchStringsIgnoringDiacritics, cleanAndNormalizeString, splitFirstCommaComponent, expandAbbreviations, isNullOrEmpty }

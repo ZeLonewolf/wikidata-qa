@@ -2,7 +2,14 @@ const fs = require('fs');
 const request = require('sync-request');
 const { createObjectCsvWriter } = require('csv-writer');
 const { parse } = require('csv-parse/sync');
-const { matchStringsIgnoringDiacritics, splitFirstCommaComponent, cleanAndNormalizeString } = require('./util-strings');
+const {
+    matchStringsIgnoringDiacritics,
+    splitFirstCommaComponent,
+    cleanAndNormalizeString,
+    expandAbbreviations,
+    isNullOrEmpty
+} = require('./util-strings');
+const { retrieveWikidataData } = require('./wikidata_query_service');
 
 //QIDs that correspond to a non-admin boundary (CDP, unincorporated)
 const CDP_QID = ["Q498162", "Q56064719", "Q17343829"];
@@ -120,22 +127,6 @@ function validateTags(row, flags) {
     }
 }
 
-function expandAbbreviations(texts) {
-    if (!Array.isArray(texts)) {
-        return [];
-    }
-    const abbreviations = {
-            "St.": "Saint",
-            //Add other cases here
-    };
-    return texts.map(text => {
-        if (isNullOrEmpty(text)) {
-            return text;
-        }
-        return text.replace(new RegExp(Object.keys(abbreviations).join("|"), 'g'), matched => abbreviations[matched]);
-    });
-}
-
 // Cache object
 const wdCache = new Map();
 const wdClaimsCache = new Map();
@@ -167,42 +158,13 @@ function retrieveWikidataDataInChunks(qids) {
         };
     }, { entities: {} });
 }
-
-function retrieveWikidataData(qids) {
-    try {
-        const res = request('GET', `https://www.wikidata.org/w/api.php`, {
-            qs: {
-                action: 'wbgetentities',
-                ids: qids.join('|'),
-                props: 'claims|labels|sitelinks|aliases',
-                languages: 'en', // Only necessary for labels
-                format: 'json'
-            }
-        });
-        return JSON.parse(res.getBody('utf8'));
-    } catch (error) {
-        console.error(`General error fetching data for a list of QIDs:`, error);
-        return {};
-    }
-}
-
 // Refactored function to handle fetching and caching of both data types
 function cacheWikidataData(qids, cacheClaimsFunction, cacheNamesFunction, cacheSitelinksFunction, cacheAliasesFunction) {
     const chunkedQids = chunkArray(qids, CHUNK_SIZE);
 
     chunkedQids.forEach(chunk => {
         try {
-            const res = request('GET', `https://www.wikidata.org/w/api.php`, {
-                qs: {
-                    action: 'wbgetentities',
-                    ids: chunk.join('|'),
-                    props: 'claims|labels|sitelinks|aliases',
-                    languages: 'en', // Only necessary for labels
-                    format: 'json'
-                }
-            });
-            const data = JSON.parse(res.getBody('utf8'));
-
+            const data = retrieveWikidataData(chunk);
             chunk.forEach(qid => {
                 try {
                     if (cacheClaimsFunction) {
@@ -415,10 +377,6 @@ function fetchData(qid) {
         return { P131: '', P131_name: '', wikidata_names: [], P402: '', P402_count: '', P31: '', P31_name: '' };
     }
 };
-
-function isNullOrEmpty(value) {
-    return value === null || value === undefined || value === '';
-}
 
 async function boundaryCheck(inputCSV, outputCSV, state, censusPlaces, citiesAndTowns) {
 
