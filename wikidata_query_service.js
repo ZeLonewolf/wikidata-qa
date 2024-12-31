@@ -1,65 +1,34 @@
 const { nonAdminQIDs } = require('./non_admin_entities');
 const request = require('sync-request');
 
-function getStateQIDQuery(relationId) {
-    return `SELECT ?state ?stateLabel WHERE {
-        ?state wdt:P402 "${relationId}".
-        ?state wdt:P31 wd:Q35657.
-        ?state wdt:P17 wd:Q30.
-        SERVICE wikibase:label { 
-            bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en". 
+// Constants
+const WIKIDATA_API_URL = 'https://www.wikidata.org/w/api.php';
+const WIKIDATA_SPARQL_URL = 'https://query.wikidata.org/sparql';
+const USER_AGENT = 'wikidata-qa/1.0 (https://github.com/ZeLonewolf/wikidata-qa)';
+
+// SPARQL Query Functions
+function buildSPARQLQuery(queryString) {
+    return {
+        url: WIKIDATA_SPARQL_URL,
+        options: {
+            qs: {
+                query: queryString,
+                format: 'json'
+            },
+            headers: {
+                'Accept': 'application/sparql-results+json',
+                'User-Agent': USER_AGENT
+            }
         }
-    }`;
-}
-
-async function getStateQID(relationId) {
-    let query = getStateQIDQuery(relationId);
-    let results = await queryWikidata(query);
-    return results[0].state.value.replace('http://www.wikidata.org/entity/', '');
-}
-
-function getCitiesAndTownsInStateQuery(qid) {
-    return `SELECT DISTINCT ?city ?cityLabel WHERE {
-        # Ensure the entity is an admin entity or its subclasses
-        VALUES ?cityClass { wd:Q852446 }
-        ?city wdt:P31/wdt:P279* ?cityClass.
-        
-        # Exclude other types of districts
-        MINUS {
-            ?city wdt:P31/wdt:P279* ?excludedClass.
-            VALUES ?excludedClass { ${nonAdminQIDs().map(qid => `wd:${qid}`).join(' ')} }
-        }
-
-        # Exclude counties or equivalents, unless consolidated city-counties or independent cities
-        MINUS {
-            ?city wdt:P31/wdt:P279* wd:Q13360155.
-            FILTER NOT EXISTS { ?city wdt:P31/wdt:P279* wd:Q3301053. } # Consolidated city-counties
-            FILTER NOT EXISTS { ?city wdt:P31/wdt:P279* wd:Q1266818. } # Independent cities
-        }
-
-        # Traverse administrative divisions to ensure the city is within this state
-        ?city (wdt:P131|wdt:P131/wdt:P131|wdt:P131/wdt:P131/wdt:P131) wd:${qid}.
-
-        # Retrieve labels in the preferred language
-        SERVICE wikibase:label { 
-            bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en". 
-        }
-    }`;
-}
-
-async function getCitiesAndTownsInState(qid) {
-    let query = getCitiesAndTownsInStateQuery(qid);
-    let results = await queryWikidata(query);
-    return results;
+    };
 }
 
 async function queryWikidata(query) {
-    const endpoint = 'https://query.wikidata.org/sparql';
-    const fullUrl = endpoint + '?query=' + encodeURIComponent(query);
+    const fullUrl = `${WIKIDATA_SPARQL_URL}?query=${encodeURIComponent(query)}`;
     const response = await fetch(fullUrl, {
         headers: {
             'Accept': 'application/sparql-results+json',
-            'User-Agent': 'wikidata-qa/1.0 (https://github.com/ZeLonewolf/wikidata-qa)'
+            'User-Agent': USER_AGENT
         }
     });
 
@@ -70,56 +39,113 @@ async function queryWikidata(query) {
     return data.results.bindings;
 }
 
+// State-Related Functions
+function getStateQIDQuery(relationId) {
+    return `
+        SELECT ?state ?stateLabel WHERE {
+            ?state wdt:P402 "${relationId}";
+                   wdt:P31 wd:Q35657;
+                   wdt:P17 wd:Q30.
+            SERVICE wikibase:label { 
+                bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en". 
+            }
+        }`;
+}
+
+async function getStateQID(relationId) {
+    const results = await queryWikidata(getStateQIDQuery(relationId));
+    if (!results.length) {
+        throw new Error(`No state found for relation ID: ${relationId}`);
+    }
+    return results[0].state.value.replace('http://www.wikidata.org/entity/', '');
+}
+
+// Cities and Towns Functions
+function getCitiesAndTownsInStateQuery(qid) {
+    const excludedClasses = nonAdminQIDs().map(qid => `wd:${qid}`).join(' ');
+    
+    return `
+        SELECT DISTINCT ?city ?cityLabel WHERE {
+            VALUES ?cityClass { wd:Q852446 }
+            ?city wdt:P31/wdt:P279* ?cityClass;
+                  (wdt:P131|wdt:P131/wdt:P131|wdt:P131/wdt:P131/wdt:P131) wd:${qid}.
+            
+            MINUS {
+                ?city wdt:P31/wdt:P279* ?excludedClass.
+                VALUES ?excludedClass { ${excludedClasses} }
+            }
+
+            MINUS {
+                ?city wdt:P31/wdt:P279* wd:Q13360155.
+                FILTER NOT EXISTS { ?city wdt:P31/wdt:P279* wd:Q3301053. }
+                FILTER NOT EXISTS { ?city wdt:P31/wdt:P279* wd:Q1266818. }
+            }
+
+            SERVICE wikibase:label { 
+                bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en". 
+            }
+        }`;
+}
+
+async function getCitiesAndTownsInState(qid) {
+    return await queryWikidata(getCitiesAndTownsInStateQuery(qid));
+}
+
 async function getCitiesAndTownsInStateRelation(relationId) {
     const qid = await getStateQID(relationId);
     return await getCitiesAndTownsInState(qid);
 }
 
+// Wikidata API Functions
 function retrieveWikidataData(qids) {
+    if (!qids?.length) return {};
+
     try {
-        const res = request('GET', `https://www.wikidata.org/w/api.php`, {
+        const res = request('GET', WIKIDATA_API_URL, {
             qs: {
                 action: 'wbgetentities',
                 ids: qids.join('|'),
                 props: 'claims|labels|sitelinks|aliases',
-                languages: 'en', // Only necessary for labels
+                languages: 'en',
                 format: 'json'
+            },
+            headers: {
+                'User-Agent': USER_AGENT
             }
         });
         return JSON.parse(res.getBody('utf8'));
     } catch (error) {
-        console.error(`General error fetching data for a list of QIDs:`, error);
+        console.error(`Error fetching data for QIDs: ${qids.join(', ')}`, error);
         return {};
     }
 }
 
+// OSM ID Link Functions
 function getOSMIDLinksQuery(osmIds) {
+    if (!osmIds?.length) return '';
+    
     return `
         SELECT ?item ?osmId WHERE {
-            ?item wdt:P402 ?osmId .
+            ?item wdt:P402 ?osmId.
             VALUES ?osmId { "${osmIds.join('" "')}" }
         }`;
 }
 
-function fetchOSMIDLinks(chunk) {
-    const sparqlQuery = getOSMIDLinksQuery(chunk);
-    const url = "https://query.wikidata.org/sparql";
+function fetchOSMIDLinks(osmIds) {
+    if (!osmIds?.length) return null;
 
     try {
-        const res = request('GET', url, {
-            qs: {
-                query: sparqlQuery,
-                format: 'json'
-            },
-            headers: {
-                'User-Agent': 'ZeLonewolf-Wikidata-QA-Scripts/1.0 (https://github.com/ZeLonewolf/wikidata-qa)'
-            }
-        });
+        const { url, options } = buildSPARQLQuery(getOSMIDLinksQuery(osmIds));
+        const res = request('GET', url, options);
         return JSON.parse(res.getBody('utf8'));
     } catch (error) {
-        console.error(`Error querying Wikidata for chunk: ${chunk}`);
+        console.error(`Error querying Wikidata for OSM IDs: ${osmIds.join(', ')}`, error);
         return null;
     }
 }
 
-module.exports = { getCitiesAndTownsInStateRelation, retrieveWikidataData, fetchOSMIDLinks }
+module.exports = {
+    getCitiesAndTownsInStateRelation,
+    retrieveWikidataData,
+    fetchOSMIDLinks
+};
