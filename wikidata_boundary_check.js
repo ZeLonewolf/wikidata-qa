@@ -2,7 +2,18 @@ const fs = require('fs');
 const request = require('sync-request');
 const { createObjectCsvWriter } = require('csv-writer');
 const { parse } = require('csv-parse/sync');
-const { matchStringsIgnoringDiacritics, splitFirstCommaComponent, cleanAndNormalizeString } = require('./util-strings');
+const {
+    matchStringsIgnoringDiacritics,
+    splitFirstCommaComponent,
+    cleanAndNormalizeString,
+    expandAbbreviations,
+    isNullOrEmpty
+} = require('./util-strings');
+const { 
+    retrieveWikidataData, 
+    fetchOSMIDLinks 
+} = require('./wikidata_query_service');
+const { chunkArray } = require('./util-array');
 
 //QIDs that correspond to a non-admin boundary (CDP, unincorporated)
 const CDP_QID = ["Q498162", "Q56064719", "Q17343829"];
@@ -120,22 +131,6 @@ function validateTags(row, flags) {
     }
 }
 
-function expandAbbreviations(texts) {
-    if (!Array.isArray(texts)) {
-        return [];
-    }
-    const abbreviations = {
-            "St.": "Saint",
-            //Add other cases here
-    };
-    return texts.map(text => {
-        if (isNullOrEmpty(text)) {
-            return text;
-        }
-        return text.replace(new RegExp(Object.keys(abbreviations).join("|"), 'g'), matched => abbreviations[matched]);
-    });
-}
-
 // Cache object
 const wdCache = new Map();
 const wdClaimsCache = new Map();
@@ -144,14 +139,6 @@ const wdSitelinksCache = new Map();
 const wdAliasesCache = new Map();
 const wdOSMRelReverseLink = new Map();
 const CHUNK_SIZE = 50;
-
-function chunkArray(array, chunkSize) {
-    const chunks = [];
-    for (let i = 0; i < array.length; i += chunkSize) {
-        chunks.push(array.slice(i, i + chunkSize));
-    }
-    return chunks;
-}
 
 function retrieveWikidataDataInChunks(qids) {
     const chunkedQids = chunkArray(qids, CHUNK_SIZE);
@@ -167,42 +154,13 @@ function retrieveWikidataDataInChunks(qids) {
         };
     }, { entities: {} });
 }
-
-function retrieveWikidataData(qids) {
-    try {
-        const res = request('GET', `https://www.wikidata.org/w/api.php`, {
-            qs: {
-                action: 'wbgetentities',
-                ids: qids.join('|'),
-                props: 'claims|labels|sitelinks|aliases',
-                languages: 'en', // Only necessary for labels
-                format: 'json'
-            }
-        });
-        return JSON.parse(res.getBody('utf8'));
-    } catch (error) {
-        console.error(`General error fetching data for a list of QIDs:`, error);
-        return {};
-    }
-}
-
 // Refactored function to handle fetching and caching of both data types
 function cacheWikidataData(qids, cacheClaimsFunction, cacheNamesFunction, cacheSitelinksFunction, cacheAliasesFunction) {
     const chunkedQids = chunkArray(qids, CHUNK_SIZE);
 
     chunkedQids.forEach(chunk => {
         try {
-            const res = request('GET', `https://www.wikidata.org/w/api.php`, {
-                qs: {
-                    action: 'wbgetentities',
-                    ids: chunk.join('|'),
-                    props: 'claims|labels|sitelinks|aliases',
-                    languages: 'en', // Only necessary for labels
-                    format: 'json'
-                }
-            });
-            const data = JSON.parse(res.getBody('utf8'));
-
+            const data = retrieveWikidataData(chunk);
             chunk.forEach(qid => {
                 try {
                     if (cacheClaimsFunction) {
@@ -296,27 +254,9 @@ function cacheWikidataToOSMIDLinks(osmIds) {
     const chunks = chunkArray(osmIds, 50);
 
     for (const chunk of chunks) {
-        // Modify the SPARQL query to handle multiple OSM IDs
-        const sparqlQuery = `
-            SELECT ?item ?osmId WHERE {
-                ?item wdt:P402 ?osmId .
-                VALUES ?osmId { "${chunk.join('" "')}" }
-            }`;
-
-        const url = "https://query.wikidata.org/sparql";
-
-        try {
-            const res = request('GET', url, {
-                qs: {
-                    query: sparqlQuery,
-                    format: 'json'
-                },
-                headers: {
-                    'User-Agent': 'ZeLonewolf-Wikidata-QA-Scripts/1.0 (https://github.com/ZeLonewolf/wikidata-qa)'
-                }
-            });
-            const body = JSON.parse(res.getBody('utf8'));
-
+        const body = fetchOSMIDLinks(chunk);
+        
+        if (body) {
             body.results.bindings.forEach(binding => {
                 // Extract QID from the URL
                 const qid = binding.item.value.split('/').pop();
@@ -329,12 +269,9 @@ function cacheWikidataToOSMIDLinks(osmIds) {
                 }
             });
             console.log(`Cached ${chunk.length} P402 reverse wikidata references`);
-        } catch (error) {
-            console.error(`Error querying Wikidata for chunk: ${chunk}`);
         }
     }
 };
-
 function cacheWikidataRedirects(qids) {
   const url = `https://www.wikidata.org/w/api.php`;
 
@@ -415,10 +352,6 @@ function fetchData(qid) {
         return { P131: '', P131_name: '', wikidata_names: [], P402: '', P402_count: '', P31: '', P31_name: '' };
     }
 };
-
-function isNullOrEmpty(value) {
-    return value === null || value === undefined || value === '';
-}
 
 async function boundaryCheck(inputCSV, outputCSV, state, censusPlaces, citiesAndTowns) {
 
