@@ -567,6 +567,15 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
             normalizedNames.push(cleanAndNormalizeString(row.short_name));
         }
 
+        // Add alt_name if present
+        if (row.alt_name) {
+            normalizedNames.push(cleanAndNormalizeString(row.alt_name));
+        }
+
+        // Add old_name if present 
+        if (row.old_name) {
+            normalizedNames.push(cleanAndNormalizeString(row.old_name));
+        }
         // Add official_name if present
         if (row.official_name) {
             normalizedNames.push(cleanAndNormalizeString(row.official_name));
