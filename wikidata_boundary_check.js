@@ -9,7 +9,10 @@ const {
     expandAbbreviations,
     isNullOrEmpty
 } = require('./util-strings');
-const { retrieveWikidataData } = require('./wikidata_query_service');
+const { 
+    retrieveWikidataData, 
+    fetchOSMIDLinks 
+} = require('./wikidata_query_service');
 
 //QIDs that correspond to a non-admin boundary (CDP, unincorporated)
 const CDP_QID = ["Q498162", "Q56064719", "Q17343829"];
@@ -258,27 +261,9 @@ function cacheWikidataToOSMIDLinks(osmIds) {
     const chunks = chunkArray(osmIds, 50);
 
     for (const chunk of chunks) {
-        // Modify the SPARQL query to handle multiple OSM IDs
-        const sparqlQuery = `
-            SELECT ?item ?osmId WHERE {
-                ?item wdt:P402 ?osmId .
-                VALUES ?osmId { "${chunk.join('" "')}" }
-            }`;
-
-        const url = "https://query.wikidata.org/sparql";
-
-        try {
-            const res = request('GET', url, {
-                qs: {
-                    query: sparqlQuery,
-                    format: 'json'
-                },
-                headers: {
-                    'User-Agent': 'ZeLonewolf-Wikidata-QA-Scripts/1.0 (https://github.com/ZeLonewolf/wikidata-qa)'
-                }
-            });
-            const body = JSON.parse(res.getBody('utf8'));
-
+        const body = fetchOSMIDLinks(chunk);
+        
+        if (body) {
             body.results.bindings.forEach(binding => {
                 // Extract QID from the URL
                 const qid = binding.item.value.split('/').pop();
@@ -291,12 +276,9 @@ function cacheWikidataToOSMIDLinks(osmIds) {
                 }
             });
             console.log(`Cached ${chunk.length} P402 reverse wikidata references`);
-        } catch (error) {
-            console.error(`Error querying Wikidata for chunk: ${chunk}`);
         }
     }
 };
-
 function cacheWikidataRedirects(qids) {
   const url = `https://www.wikidata.org/w/api.php`;
 

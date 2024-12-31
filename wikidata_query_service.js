@@ -75,7 +75,6 @@ async function getCitiesAndTownsInStateRelation(relationId) {
     return await getCitiesAndTownsInState(qid);
 }
 
-
 function retrieveWikidataData(qids) {
     try {
         const res = request('GET', `https://www.wikidata.org/w/api.php`, {
@@ -94,4 +93,33 @@ function retrieveWikidataData(qids) {
     }
 }
 
-module.exports = { getCitiesAndTownsInStateRelation, retrieveWikidataData }
+function getOSMIDLinksQuery(osmIds) {
+    return `
+        SELECT ?item ?osmId WHERE {
+            ?item wdt:P402 ?osmId .
+            VALUES ?osmId { "${osmIds.join('" "')}" }
+        }`;
+}
+
+function fetchOSMIDLinks(chunk) {
+    const sparqlQuery = getOSMIDLinksQuery(chunk);
+    const url = "https://query.wikidata.org/sparql";
+
+    try {
+        const res = request('GET', url, {
+            qs: {
+                query: sparqlQuery,
+                format: 'json'
+            },
+            headers: {
+                'User-Agent': 'ZeLonewolf-Wikidata-QA-Scripts/1.0 (https://github.com/ZeLonewolf/wikidata-qa)'
+            }
+        });
+        return JSON.parse(res.getBody('utf8'));
+    } catch (error) {
+        console.error(`Error querying Wikidata for chunk: ${chunk}`);
+        return null;
+    }
+}
+
+module.exports = { getCitiesAndTownsInStateRelation, retrieveWikidataData, fetchOSMIDLinks }
