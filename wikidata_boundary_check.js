@@ -109,6 +109,15 @@ function validateTags(row, flags) {
             const hasOsmTag = !isNullOrEmpty(row[tag]);
             const hasWikidataProperty = claims && claims[property]?.length > 0;
 
+            // Special case: If P1448 exists but official_name is missing,
+            // don't flag if P1448 matches the name tag
+            if (property === 'P1448' && !hasOsmTag && hasWikidataProperty) {
+                const p1448Value = claims[property][0].mainsnak?.datavalue?.value?.text;
+                if (p1448Value === row.name) {
+                    continue;
+                }
+            }
+
             // Flag if one exists without the other
             if (hasOsmTag !== hasWikidataProperty) {
                 if (hasOsmTag) {
