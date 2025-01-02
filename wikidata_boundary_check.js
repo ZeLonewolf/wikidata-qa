@@ -54,6 +54,12 @@ const tagPropertyPairs = {
     "short_name": "P1813"
 }
 
+const placeTypes = {
+    cities: 'city',
+    towns: 'town', 
+    villages: 'village'
+};
+
 csvHeader = [
         { id: '@id', title: '@id' },
         { id: 'boundary', title: 'boundary' },
@@ -366,6 +372,7 @@ async function boundaryCheck(inputCSV, outputCSV, state, censusPlaces, citiesAnd
 
     const outputIssuesCSV = outputCSV.replace('.csv', '_flagged.csv');
     const outputP402CSV = outputCSV.replace('.csv', '_P402_entry.csv.txt');
+    const outputRecommendedTags = outputCSV.replace('.csv', '_recommended_tags.json');
 
     const csvWriter = createObjectCsvWriter({
         path: outputCSV,
@@ -392,7 +399,8 @@ async function boundaryCheck(inputCSV, outputCSV, state, censusPlaces, citiesAnd
     const writers = {
         csvWriter,
         csvIssuesWriter,
-        P402Writer
+        P402Writer,
+        outputRecommendedTags
     }
 
     // Read the entire file into memory
@@ -439,6 +447,7 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
     const flaggedData = [];
     const quickStatementsP402 = [];
     const bulkFindings = [];
+    const recommendedTags = {};
 
     const qids = results
         .map(row => row.wikidata)
@@ -709,24 +718,24 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
             }
             if (processedRow.P31.includes('Q1093829') && processedRow.border_type !== 'city') {
                 flags.push("Wikidata instance of city (Q1093829) but border_type is not city");
+                if (!recommendedTags[processedRow['@id']]) {
+                    recommendedTags[processedRow['@id']] = {};
+                }
+                recommendedTags[processedRow['@id']].border_type = 'city';
             }
             if (processedRow.boundary == "administrative") {
-                const matchFound = normalizedNames.some(normalizedName => {
-                    if (censusPlaces.cities.some(city => cleanAndNormalizeString(city) === normalizedName)) {
-                        if (processedRow.border_type !== 'city') {
-                            flags.push(`${processedRow.name} is on Census Bureau city list but border_type is not 'city'`);
+                normalizedNames.some(normalizedName => {
+                    for (const [listType, borderType] of Object.entries(placeTypes)) {
+                        if (censusPlaces[listType].some(place => cleanAndNormalizeString(place) === normalizedName)) {
+                            if (processedRow.border_type !== borderType) {
+                                flags.push(`${processedRow.name} is on Census Bureau ${borderType} list but border_type is not '${borderType}'`);
+                                if (!recommendedTags[processedRow['@id']]) {
+                                    recommendedTags[processedRow['@id']] = {};
+                                }
+                                recommendedTags[processedRow['@id']].border_type = borderType;
+                            }
+                            return true;
                         }
-                        return true;
-                    } else if (censusPlaces.towns.some(town => cleanAndNormalizeString(town) === normalizedName)) {
-                        if (processedRow.border_type !== 'town') {
-                            flags.push(`${processedRow.name} is on Census Bureau town list but border_type is not 'town'`);
-                        }
-                        return true;
-                    } else if (censusPlaces.villages.some(village => cleanAndNormalizeString(village) === normalizedName)) {
-                        if (processedRow.border_type !== 'village') {
-                            flags.push(`${processedRow.name} is on Census Bureau village list but border_type is not 'village'`);
-                        }
-                        return true;
                     }
                     return false;
                 });
@@ -891,6 +900,9 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
     if (bulkFindings.length > 0) {
         fs.writeFileSync(`output/${state.urlName}_bulk_findings.json`, JSON.stringify(bulkFindings, null, 2));
     }
+
+    // Write recommended tags to JSON file
+    fs.writeFileSync(writers.outputRecommendedTags, JSON.stringify(recommendedTags, null, 2));
 
     return flaggedData.length;
 }
