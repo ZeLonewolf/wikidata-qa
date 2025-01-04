@@ -63,7 +63,7 @@ async function getStateQID(relationId) {
 // Cities and Towns Functions
 function getCitiesAndTownsInStateQuery(qid) {
     const excludedClasses = nonAdminQIDs().map(qid => `wd:${qid}`).join(' ');
-    
+
     return `
         SELECT DISTINCT ?city ?cityLabel WHERE {
             VALUES ?cityClass { wd:Q852446 }
@@ -71,8 +71,13 @@ function getCitiesAndTownsInStateQuery(qid) {
                   (wdt:P131|wdt:P131/wdt:P131|wdt:P131/wdt:P131/wdt:P131) wd:${qid}.
             
             MINUS {
-                ?city wdt:P31/wdt:P279* ?excludedClass.
+                ?city p:P31/ps:P31/wdt:P279* ?excludedClass.
                 VALUES ?excludedClass { ${excludedClasses} }
+                FILTER NOT EXISTS {
+                    ?city p:P31 ?statement.
+                    ?statement ps:P31/wdt:P279* ?excludedClass;
+                              pq:P582 ?endTime.
+                }
             }
 
             MINUS {
