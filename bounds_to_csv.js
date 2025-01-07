@@ -12,7 +12,8 @@ area(id:${relationid})->.a;
 (
   rel[boundary=administrative][admin_level~"^7|8|9$"](area.a);
   rel[boundary=administrative][admin_level=6][border_type~city](area.a);
-  rel[boundary=census][border_type!=unorganized_territory](area.a);
+  rel[boundary=census](area.a);
+  rel[boundary=statistical][border_type=census_designated_place](area.a);
   rel[type=boundary][!boundary](area.a);
 );
 
