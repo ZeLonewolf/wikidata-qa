@@ -19,7 +19,7 @@ To download boundary and place node data for a state, use the following overpass
 [out:json][timeout:300];
 area["boundary"="administrative"]["name"="NAME_OF_STATE"]["admin_level"=4]->.searchArea;
 (
-  nwr["boundary"~"^census|administrative$"](area.searchArea);
+  nwr["boundary"~"^census|administrative|statistical$"](area.searchArea);
   rel[type=boundary][admin_level](area.searchArea);
   rel[type=boundary][boundary=place](area.searchArea);
   node[place](area.searchArea);

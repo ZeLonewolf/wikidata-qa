@@ -18,6 +18,12 @@ const { chunkArray } = require('./util-array');
 //QIDs that correspond to a non-admin boundary (CDP, unincorporated)
 const CDP_QID = ["Q498162", "Q56064719", "Q17343829"];
 
+function isCDP(row) {
+    return row['boundary'] == 'census' || 
+           (row['boundary'] == 'statistical' && row['border_type'] == 'census_designated_place');
+}
+
+
 //Map of required tag->key combinations
 const validBoundaryTags = {
     "administrative": {
@@ -34,6 +40,15 @@ const validBoundaryTags = {
         "required": {
             "name": true,
             "wikidata": true,
+            "type": "boundary"
+        },
+        "disallowed": ["place"]
+    },
+    "statistical": {
+        "required": {
+            "name": true,
+            "wikidata": true,
+            "border_type": true,
             "type": "boundary"
         },
         "disallowed": ["place"]
@@ -608,7 +623,7 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
             }
         }
         
-        if(row['boundary'] == 'census') {
+        if(isCDP(row)) {
             //Remove this boundary from un-found list if any normalized name matches
             let index = unfoundCDPs.findIndex(item => 
                 normalizedNames.some(normalizedName => cleanAndNormalizeString(item) === normalizedName)
@@ -748,7 +763,7 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
                 // Add relation ID to list of mismatches
                 cdpMismatchRelations.push(processedRow['@id'].substring(1));
             }
-            if (!CDP_QID.some(qid => processedRow.P31.includes(qid)) && processedRow.boundary == "census") {
+            if (!CDP_QID.some(qid => processedRow.P31.includes(qid)) && isCDP(processedRow)) {
                 flags.push("OSM says CDP but wikidata is missing CDP statement");
             }
             if (processedRow.boundary == "administrative" && 
@@ -762,14 +777,17 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
                     of cities and towns
                 `);
             }
-            if(processedRow.boundary == "census" && 
+            if(isCDP(processedRow) && 
                !normalizedNames.some(normalizedName =>
                    censusPlaces.cdps.some(cdp => cleanAndNormalizeString(cdp) === normalizedName)
                )) {
                 flags.push(`OSM boundary=census ${processedRow.name} is not on the census bureau <a href="https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer/2024_gaz_place_${state.fipsCode}.txt">list</a> of CDPs`);
             }
-            if(!isNullOrEmpty(processedRow.admin_level) && processedRow.boundary == "census") {
+            if(!isNullOrEmpty(processedRow.admin_level) && isCDP(processedRow)) {
                 flags.push("Census boundary should not have admin_level");
+            }
+            if (processedRow.boundary === "statistical" && !processedRow.border_type) {
+                flags.push("Statistical boundary must have border_type tag");
             }
             if(processedRow.wikipedia) {
                 wpFlag = checkWikipediaMatch(processedRow.wikidata, processedRow.wikipedia);
