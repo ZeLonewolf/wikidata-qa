@@ -14,7 +14,6 @@ Link: https://zelonewolf.github.io/wikidata-qa
 ## Downloading boundary and place node data for a state
 
 To download boundary and place node data for a state, use the following overpass query in JOSM:
-
 ```
 [out:json][timeout:300];
 area["boundary"="administrative"]["name"="NAME_OF_STATE"]["admin_level"=4]->.searchArea;
@@ -36,9 +35,9 @@ To find boundary relations that have both a label and a (redundant) place node, 
 ```
 type:relation boundary=* place=* hasRole:label parent place=*
 ```
-
 ## Scripts
 - `admin2label.js` - Change admin_centre relation roles to label. Command line argument is the path to an OSM file.
+- `label_attach.js` - Attaches place nodes as label members to matching boundary relations where there is a 1:1 name match. Takes an OSM file path as argument.
 - `propspark.js` - Generates QuickStatements CSV file to add property values to Wikidata items based on OSM tags. Takes an OSM file path, source tag key, and Wikidata property ID as arguments.
 - `rolepurge.js` - Removes relation members with a specified role. Takes an OSM file path and role name as arguments.
 - `tagspark.js` - Copies values from a specified Wikidata property to a specified OSM tag. Takes an OSM file path, a Wikidata property ID, and an OSM tag key as arguments.
