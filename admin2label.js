@@ -26,34 +26,59 @@ fs.readFile(osmFilePath, 'utf8', (err, data) => {
         // Iterate through relations
         const relations = result.osm.relation || [];
         relations.forEach((relation) => {
-            const members = relation.member || [];
-            let hasAdminCentre = false;
-            let hasLabel = false;
-
-            // Check roles within the relation
-            members.forEach((member) => {
-                if (member.$.role === 'admin_centre') {
-                    hasAdminCentre = true;
-                }
-                if (member.$.role === 'label') {
-                    hasLabel = true;
+            const tags = relation.tag || [];
+            
+            // Check if relation matches criteria
+            let isValidBoundary = false;
+            let hasValidAdminLevel = false;
+            
+            tags.forEach((tag) => {
+                if (tag.$.k === 'boundary') {
+                    if (['census', 'statistical'].includes(tag.$.v)) {
+                        isValidBoundary = true;
+                    } else if (tag.$.v === 'administrative') {
+                        // Check for admin_level
+                        tags.forEach((adminTag) => {
+                            if (adminTag.$.k === 'admin_level' && 
+                                (adminTag.$.v === '7' || adminTag.$.v === '8')) {
+                                hasValidAdminLevel = true;
+                            }
+                        });
+                    }
                 }
             });
 
-            // If it has admin_centre but no label, modify it
-            if (hasAdminCentre && !hasLabel) {
+            // Only process if boundary type matches criteria
+            if (isValidBoundary || (hasValidAdminLevel)) {
+                const members = relation.member || [];
+                let hasAdminCentre = false;
+                let hasLabel = false;
+
+                // Check roles within the relation
                 members.forEach((member) => {
                     if (member.$.role === 'admin_centre') {
-                        member.$.role = 'label';
+                        hasAdminCentre = true;
+                    }
+                    if (member.$.role === 'label') {
+                        hasLabel = true;
                     }
                 });
 
-                // Add action="modify" to the relation
-                if (!relation.$.action) {
-                    relation.$.action = 'modify';
-                }
+                // If it has admin_centre but no label, modify it
+                if (hasAdminCentre && !hasLabel) {
+                    members.forEach((member) => {
+                        if (member.$.role === 'admin_centre') {
+                            member.$.role = 'label';
+                        }
+                    });
 
-                modified = true;
+                    // Add action="modify" to the relation
+                    if (!relation.$.action) {
+                        relation.$.action = 'modify';
+                    }
+
+                    modified = true;
+                }
             }
         });
 
