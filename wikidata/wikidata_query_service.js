@@ -1,4 +1,4 @@
-const { nonAdminQIDs } = require('./non_admin_entities');
+const { nonAdminQIDs } = require('../non_admin_entities');
 const request = require('sync-request');
 
 // Constants

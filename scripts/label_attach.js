@@ -1,43 +1,29 @@
-const fs = require('fs');
-const xml2js = require('xml2js');
+const { readOsmFile, writeOsmFile, getTags, getTagValue, setTag, markAsModified, getMembers } = require('../osm/osm-edit');
 
 // Load and parse the OSM file
 const osmFilePath = process.argv[2];
 
 if (!osmFilePath) {
     console.error('Usage: node label_attach.js <osm-file>');
-    process.exit(1); 
+    process.exit(1);
 }
 
-fs.readFile(osmFilePath, 'utf8', (err, data) => {
-    if (err) {
-        console.error('Error reading OSM file:', err);
-        return;
-    }
-
-    const parser = new xml2js.Parser();
-    parser.parseString(data, (parseErr, result) => {
-        if (parseErr) {
-            console.error('Error parsing OSM file:', parseErr);
-            return;
-        }
-
+(async () => {
+    try {
+        const result = await readOsmFile(osmFilePath);
         let modified = false;
         let updateCount = 0;
 
         // Get all nodes with place tag
         const placeNodes = (result.osm.node || []).filter(node => {
-            const tags = node.tag || [];
-            return tags.some(tag => tag.$.k === 'place');
+            return getTagValue(node, 'place') !== null;
         });
 
         // Create map of place node names to nodes
         const placeNodesByName = new Map();
         placeNodes.forEach(node => {
-            const tags = node.tag || [];
-            const nameTag = tags.find(tag => tag.$.k === 'name');
-            if (nameTag) {
-                const name = nameTag.$.v;
+            const name = getTagValue(node, 'name');
+            if (name) {
                 if (!placeNodesByName.has(name)) {
                     placeNodesByName.set(name, []);
                 }
@@ -47,9 +33,8 @@ fs.readFile(osmFilePath, 'utf8', (err, data) => {
 
         // Get boundary relations without admin_centre or label
         const relations = (result.osm.relation || []).filter(relation => {
-            const tags = relation.tag || [];
-            const members = relation.member || [];
-            const isBoundary = tags.some(tag => tag.$.k === 'boundary');
+            const isBoundary = getTagValue(relation, 'boundary') !== null;
+            const members = getMembers(relation);
             const hasAdminCentre = members.some(member => member.$.role === 'admin_centre');
             const hasLabel = members.some(member => member.$.role === 'label');
             return isBoundary && !hasAdminCentre && !hasLabel;
@@ -58,10 +43,8 @@ fs.readFile(osmFilePath, 'utf8', (err, data) => {
         // Create map of relation names to relations
         const relationsByName = new Map();
         relations.forEach(relation => {
-            const tags = relation.tag || [];
-            const nameTag = tags.find(tag => tag.$.k === 'name');
-            if (nameTag) {
-                const name = nameTag.$.v;
+            const name = getTagValue(relation, 'name');
+            if (name) {
                 if (!relationsByName.has(name)) {
                     relationsByName.set(name, []);
                 }
@@ -90,13 +73,11 @@ fs.readFile(osmFilePath, 'utf8', (err, data) => {
                 });
 
                 // Remove place tag from relation if present
-                const tags = relation.tag || [];
+                const tags = getTags(relation);
                 relation.tag = tags.filter(tag => tag.$.k !== 'place');
 
                 // Mark relation as modified
-                if (!relation.$.action) {
-                    relation.$.action = 'modify';
-                }
+                markAsModified(relation);
 
                 modified = true;
                 updateCount++;
@@ -110,19 +91,13 @@ fs.readFile(osmFilePath, 'utf8', (err, data) => {
         }
 
         if (modified) {
-            const builder = new xml2js.Builder({ headless: true });
-            const updatedXml = builder.buildObject(result);
-
-            // Write the modified data back to the OSM file
-            fs.writeFile(osmFilePath, updatedXml, (writeErr) => {
-                if (writeErr) {
-                    console.error('Error writing updated OSM file:', writeErr);
-                } else {
-                    console.log(`OSM file updated successfully. Modified ${updateCount} boundaries.`);
-                }
-            });
+            await writeOsmFile(osmFilePath, result);
+            console.log(`OSM file updated successfully. Modified ${updateCount} boundaries.`);
         } else {
             console.log('No modifications were necessary.');
         }
-    });
-});
+
+    } catch (err) {
+        console.error('Error processing OSM file:', err);
+    }
+})();

@@ -12,7 +12,7 @@ const {
 const { 
     retrieveWikidataData, 
     fetchOSMIDLinks 
-} = require('./wikidata_query_service');
+} = require('./wikidata/wikidata_query_service');
 const { chunkArray } = require('./util-array');
 
 //QIDs that correspond to a non-admin boundary (CDP, unincorporated)
@@ -635,11 +635,12 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
             // Check unfoundCitiesAndTowns for direct matches and canonical name mappings
             let index = unfoundCitiesAndTowns.findIndex(item => {
                 const cleanItem = cleanAndNormalizeString(item);
-                return normalizedNames.some(normalizedName => 
-                    cleanItem === normalizedName || 
-                    (altToCanonicalNames.has(cleanItem) && 
-                     altToCanonicalNames.get(cleanItem).has(normalizedName))
-                );
+                const isDirectMatch = normalizedNames.some(normalizedName => cleanItem === normalizedName);
+                const hasCanonicalMapping = altToCanonicalNames.has(cleanItem);
+                const matchesCanonicalName = hasCanonicalMapping && 
+                    normalizedNames.some(normalizedName => altToCanonicalNames.get(cleanItem).has(normalizedName));
+                
+                return isDirectMatch || matchesCanonicalName;
             });
             if (index !== -1) {
                 unfoundCitiesAndTowns.splice(index, 1);
