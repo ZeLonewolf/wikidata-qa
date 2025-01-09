@@ -1,5 +1,4 @@
-const fs = require('fs');
-const xml2js = require('xml2js');
+const { readOsmFile, writeOsmFile } = require('../osm/osm-edit');
 
 // Load and parse the OSM file
 const osmFilePath = process.argv[2];
@@ -10,19 +9,8 @@ if (!osmFilePath || !roleToRemove) {
     process.exit(1);
 }
 
-fs.readFile(osmFilePath, 'utf8', (err, data) => {
-    if (err) {
-        console.error('Error reading OSM file:', err);
-        return;
-    }
-
-    const parser = new xml2js.Parser();
-    parser.parseString(data, (parseErr, result) => {
-        if (parseErr) {
-            console.error('Error parsing OSM file:', parseErr);
-            return;
-        }
-
+readOsmFile(osmFilePath)
+    .then(result => {
         let modified = false;
 
         // Iterate through relations
@@ -47,19 +35,17 @@ fs.readFile(osmFilePath, 'utf8', (err, data) => {
         });
 
         if (modified) {
-            const builder = new xml2js.Builder({ headless: true });
-            const updatedXml = builder.buildObject(result);
-
-            // Write the modified data back to the OSM file
-            fs.writeFile(osmFilePath, updatedXml, (writeErr) => {
-                if (writeErr) {
-                    console.error('Error writing updated OSM file:', writeErr);
-                } else {
+            return writeOsmFile(osmFilePath, result)
+                .then(() => {
                     console.log('OSM file updated successfully.');
-                }
-            });
+                })
+                .catch(err => {
+                    console.error('Error writing updated OSM file:', err);
+                });
         } else {
             console.log('No modifications were necessary.');
         }
+    })
+    .catch(err => {
+        console.error('Error reading/parsing OSM file:', err);
     });
-});

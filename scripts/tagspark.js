@@ -1,6 +1,5 @@
-const fs = require('fs');
-const xml2js = require('xml2js');
-const axios = require('axios');
+const { readOsmFile, writeOsmFile, getTags, setTag, markAsModified } = require('../osm/osm-edit');
+const { queryWikidata } = require('../wikidata/wikidata_query_service');
 
 // Load and parse the OSM file
 const osmFilePath = process.argv[2];
@@ -24,35 +23,29 @@ async function getWikidataValues(qids, propertyId) {
     }
 
     try {
-        const response = await axios.get(`https://www.wikidata.org/w/api.php`, {
-            params: {
-                action: 'wbgetentities',
-                ids: uncachedQids.join('|'),
-                props: 'claims',
-                format: 'json'
+        const query = `
+            SELECT ?item ?value WHERE {
+                VALUES ?item { ${uncachedQids.map(qid => `wd:${qid}`).join(' ')} }
+                ?item wdt:${propertyId} ?value .
             }
-        });
+        `;
 
-        const entities = response.data.entities;
-        
+        const results = await queryWikidata(query);
+
         // Process and cache results
         for (const qid of uncachedQids) {
-            const claims = entities[qid]?.claims?.[propertyId];
-            if (!claims || claims.length === 0) {
+            const result = results.find(r => r.item.value.endsWith(qid));
+            if (!result) {
                 wikidataCache.set(qid, null);
                 continue;
             }
 
-            const value = claims[0].mainsnak.datavalue?.value;
-            if (typeof value === 'object' && value.text) {
-                wikidataCache.set(qid, value.text);
-            } else {
-                wikidataCache.set(qid, value);
-            }
+            const value = result.value.value;
+            wikidataCache.set(qid, value);
         }
 
     } catch (error) {
-        console.error(`Error fetching Wikidata batch:`, error.message);
+        console.error(`Error querying Wikidata:`, error.message);
         // Cache failures as null
         uncachedQids.forEach(qid => wikidataCache.set(qid, null));
     }
@@ -60,15 +53,9 @@ async function getWikidataValues(qids, propertyId) {
     return qids.map(qid => wikidataCache.get(qid));
 }
 
-fs.readFile(osmFilePath, 'utf8', async (err, data) => {
-    if (err) {
-        console.error('Error reading OSM file:', err);
-        return;
-    }
-
-    const parser = new xml2js.Parser();
+(async () => {
     try {
-        const result = await parser.parseStringPromise(data);
+        const result = await readOsmFile(osmFilePath);
         let modified = false;
 
         // First collect all QIDs
@@ -79,13 +66,13 @@ fs.readFile(osmFilePath, 'utf8', async (err, data) => {
             const elements = result.osm[elementType] || [];
             
             for (const element of elements) {
-                const tags = element.tag || [];
+                const tags = getTags(element);
                 const wikidataTag = tags.find(tag => tag.$.k === 'wikidata');
                 if (!wikidataTag) continue;
 
                 const qid = wikidataTag.$.v;
                 elementQids.push(qid);
-                elementsByQid.set(qid, {element, tags, elementType});
+                elementsByQid.set(qid, {element, elementType});
             }
         }
 
@@ -97,11 +84,12 @@ fs.readFile(osmFilePath, 'utf8', async (err, data) => {
             for (let j = 0; j < batchQids.length; j++) {
                 const qid = batchQids[j];
                 const value = values[j];
-                const {element, tags, elementType} = elementsByQid.get(qid);
+                const {element, elementType} = elementsByQid.get(qid);
 
                 if (!value) continue;
 
                 // Check if dest tag already exists
+                const tags = getTags(element);
                 const destTagExists = tags.some(tag => tag.$.k === destTag);
                 if (destTagExists) {
                     console.error(`Warning: Destination tag '${destTag}' already exists on ${elementType} ${element.$.id}`);
@@ -109,39 +97,20 @@ fs.readFile(osmFilePath, 'utf8', async (err, data) => {
                 }
 
                 // Add the new tag
-                tags.push({
-                    $: {
-                        k: destTag,
-                        v: value
-                    }
-                });
-
-                // Add action="modify" to the element
-                if (!element.$.action) {
-                    element.$.action = 'modify';
-                }
-
+                setTag(element, destTag, value);
+                markAsModified(element);
                 modified = true;
             }
         }
 
         if (modified) {
-            const builder = new xml2js.Builder({ headless: true });
-            const updatedXml = builder.buildObject(result);
-
-            // Write the modified data back to the OSM file
-            fs.writeFile(osmFilePath, updatedXml, (writeErr) => {
-                if (writeErr) {
-                    console.error('Error writing updated OSM file:', writeErr);
-                } else {
-                    console.log('OSM file updated successfully.');
-                }
-            });
+            await writeOsmFile(osmFilePath, result);
+            console.log('OSM file updated successfully.');
         } else {
             console.log('No modifications were necessary.');
         }
 
-    } catch (parseErr) {
-        console.error('Error parsing OSM file:', parseErr);
+    } catch (err) {
+        console.error('Error processing OSM file:', err);
     }
-});
+})();
