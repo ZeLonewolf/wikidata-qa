@@ -152,5 +152,6 @@ function fetchOSMIDLinks(osmIds) {
 module.exports = {
     getCitiesAndTownsInStateRelation,
     retrieveWikidataData,
-    fetchOSMIDLinks
+    fetchOSMIDLinks,
+    queryWikidata
 };
