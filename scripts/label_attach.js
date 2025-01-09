@@ -1,4 +1,5 @@
-const { readOsmFile, writeOsmFile, getTags, getTagValue, setTag, markAsModified, getMembers } = require('../osm/osm-edit');
+const { readOsmFile, writeOsmFile, getTags, getTagValue, markAsModified, getMembers } = require('../osm/osm-edit');
+const geolib = require('geolib');
 
 // Load and parse the OSM file
 const osmFilePath = process.argv[2];
@@ -6,6 +7,41 @@ const osmFilePath = process.argv[2];
 if (!osmFilePath) {
     console.error('Usage: node label_attach.js <osm-file>');
     process.exit(1);
+}
+
+// Find closest point on boundary to given node
+function findClosestBoundaryPoint(node, relation, result) {
+    let minDistance = Infinity;
+    let closestPoint = null;
+    
+    // Get all nodes that make up the boundary
+    const members = getMembers(relation);
+    const wayMembers = members.filter(m => m.$.type === 'way');
+    
+    for (const wayMember of wayMembers) {
+        const way = result.osm.way.find(w => w.$.id === wayMember.$.ref);
+        if (!way || !way.nd) continue;
+        
+        for (const nd of way.nd) {
+            const boundaryNode = result.osm.node.find(n => n.$.id === nd.$.ref);
+            if (!boundaryNode) continue;
+            
+            const distance = geolib.convertDistance(
+                geolib.getDistance(
+                    { latitude: node.$.lat, longitude: node.$.lon },
+                    { latitude: boundaryNode.$.lat, longitude: boundaryNode.$.lon }
+                ),
+                'mi'
+            );
+            
+            if (distance < minDistance) {
+                minDistance = distance;
+                closestPoint = boundaryNode;
+            }
+        }
+    }
+    
+    return { distance: minDistance, point: closestPoint };
 }
 
 (async () => {
@@ -52,38 +88,73 @@ if (!osmFilePath) {
             }
         });
 
-        // Find 1:1 matches and attach labels
+        // Find matches and attach labels
         for (const [name, nodes] of placeNodesByName) {
             const matchingRelations = relationsByName.get(name) || [];
             
-            if (nodes.length === 1 && matchingRelations.length === 1) {
-                const node = nodes[0];
+            if (matchingRelations.length === 1) {
                 const relation = matchingRelations[0];
+                let selectedNode = null;
 
-                // Add node as label member
-                if (!relation.member) {
-                    relation.member = [];
-                }
-                relation.member.push({
-                    $: {
-                        type: 'node',
-                        ref: node.$.id,
-                        role: 'label'
+                if (nodes.length === 1) {
+                    selectedNode = nodes[0];
+                } else {
+                    // Find closest node to boundary
+                    let closestNode = null;
+                    let minDistance = Infinity;
+                    let multipleWithin20Miles = false;
+
+                    for (const node of nodes) {
+                        const { distance } = findClosestBoundaryPoint(node, relation, result);
+                        console.log(`Node ${node.$.id} is ${distance.toFixed(2)} miles from boundary of ${name}`);
+                        
+                        if (distance < minDistance) {
+                            minDistance = distance;
+                            closestNode = node;
+                        }
+                        
+                        // Check if multiple nodes are within 20 miles
+                        if (distance <= 20) {
+                            if (selectedNode) {
+                                multipleWithin20Miles = true;
+                                break;
+                            }
+                            selectedNode = node;
+                        }
                     }
-                });
 
-                // Remove place tag from relation if present
-                const tags = getTags(relation);
-                relation.tag = tags.filter(tag => tag.$.k !== 'place');
+                    // If no nodes within 20 miles or multiple within 20 miles, use the closest
+                    if (!selectedNode || multipleWithin20Miles) {
+                        selectedNode = closestNode;
+                    }
+                }
 
-                // Mark relation as modified
-                markAsModified(relation);
+                if (selectedNode) {
+                    // Add node as label member
+                    if (!relation.member) {
+                        relation.member = [];
+                    }
+                    relation.member.push({
+                        $: {
+                            type: 'node',
+                            ref: selectedNode.$.id,
+                            role: 'label'
+                        }
+                    });
 
-                modified = true;
-                updateCount++;
-                console.log(`Added label to boundary ${name} (relation ${relation.$.id})`);
+                    // Remove place tag from relation if present
+                    const tags = getTags(relation);
+                    relation.tag = tags.filter(tag => tag.$.k !== 'place');
+
+                    // Mark relation as modified
+                    markAsModified(relation);
+
+                    modified = true;
+                    updateCount++;
+                    console.log(`Added label to boundary ${name} (relation ${relation.$.id})`);
+                }
             } else if (nodes.length > 0 && matchingRelations.length > 0) {
-                // Print debug info for 1:many or many:many matches
+                // Print debug info for many:many matches
                 console.log(`Found ${nodes.length} nodes and ${matchingRelations.length} relations for "${name}"`);
                 console.log(`Nodes: ${nodes.map(n => n.$.id).join(', ')}`);
                 console.log(`Relations: ${matchingRelations.map(r => r.$.id).join(', ')}`);
