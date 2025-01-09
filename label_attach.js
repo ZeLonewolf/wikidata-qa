@@ -101,6 +101,11 @@ fs.readFile(osmFilePath, 'utf8', (err, data) => {
                 modified = true;
                 updateCount++;
                 console.log(`Added label to boundary ${name} (relation ${relation.$.id})`);
+            } else if (nodes.length > 0 && matchingRelations.length > 0) {
+                // Print debug info for 1:many or many:many matches
+                console.log(`Found ${nodes.length} nodes and ${matchingRelations.length} relations for "${name}"`);
+                console.log(`Nodes: ${nodes.map(n => n.$.id).join(', ')}`);
+                console.log(`Relations: ${matchingRelations.map(r => r.$.id).join(', ')}`);
             }
         }
 
