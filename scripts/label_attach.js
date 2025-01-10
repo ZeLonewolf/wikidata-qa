@@ -92,72 +92,68 @@ function findClosestBoundaryPoint(node, relation, result) {
         for (const [name, nodes] of placeNodesByName) {
             const matchingRelations = relationsByName.get(name) || [];
             
-            if (matchingRelations.length === 1) {
-                const relation = matchingRelations[0];
-                let selectedNode = null;
+            if (matchingRelations.length > 0) {
+                for (const relation of matchingRelations) {
+                    let selectedNode = null;
 
-                if (nodes.length === 1) {
-                    selectedNode = nodes[0];
-                } else {
-                    // Find closest node to boundary
-                    let closestNode = null;
-                    let minDistance = Infinity;
-                    let multipleWithin20Miles = false;
+                    if (nodes.length === 1) {
+                        selectedNode = nodes[0];
+                    } else {
+                        // Find closest node to boundary
+                        let closestNode = null;
+                        let minDistance = Infinity;
+                        let multipleWithin20Miles = false;
 
-                    for (const node of nodes) {
-                        const { distance } = findClosestBoundaryPoint(node, relation, result);
-                        console.log(`Node ${node.$.id} is ${distance.toFixed(2)} miles from boundary of ${name}`);
-                        
-                        if (distance < minDistance) {
-                            minDistance = distance;
-                            closestNode = node;
-                        }
-                        
-                        // Check if multiple nodes are within 20 miles
-                        if (distance <= 20) {
-                            if (selectedNode) {
-                                multipleWithin20Miles = true;
-                                break;
+                        for (const node of nodes) {
+                            const { distance } = findClosestBoundaryPoint(node, relation, result);
+                            console.log(`Node ${node.$.id} is ${distance.toFixed(2)} miles from boundary of ${name}`);
+                            
+                            if (distance < minDistance) {
+                                minDistance = distance;
+                                closestNode = node;
                             }
-                            selectedNode = node;
+                            
+                            // Check if multiple nodes are within 20 miles
+                            if (distance <= 20) {
+                                if (selectedNode) {
+                                    multipleWithin20Miles = true;
+                                    break;
+                                }
+                                selectedNode = node;
+                            }
+                        }
+
+                        // If no nodes within 20 miles or multiple within 20 miles, use the closest
+                        if (!selectedNode || multipleWithin20Miles) {
+                            selectedNode = closestNode;
                         }
                     }
 
-                    // If no nodes within 20 miles or multiple within 20 miles, use the closest
-                    if (!selectedNode || multipleWithin20Miles) {
-                        selectedNode = closestNode;
-                    }
-                }
-
-                if (selectedNode) {
-                    // Add node as label member
-                    if (!relation.member) {
-                        relation.member = [];
-                    }
-                    relation.member.push({
-                        $: {
-                            type: 'node',
-                            ref: selectedNode.$.id,
-                            role: 'label'
+                    if (selectedNode) {
+                        // Add node as label member
+                        if (!relation.member) {
+                            relation.member = [];
                         }
-                    });
+                        relation.member.push({
+                            $: {
+                                type: 'node',
+                                ref: selectedNode.$.id,
+                                role: 'label'
+                            }
+                        });
 
-                    // Remove place tag from relation if present
-                    const tags = getTags(relation);
-                    relation.tag = tags.filter(tag => tag.$.k !== 'place');
+                        // Remove place tag from relation if present
+                        const tags = getTags(relation);
+                        relation.tag = tags.filter(tag => tag.$.k !== 'place');
 
-                    // Mark relation as modified
-                    markAsModified(relation);
+                        // Mark relation as modified
+                        markAsModified(relation);
 
-                    modified = true;
-                    updateCount++;
-                    console.log(`Added label to boundary ${name} (relation ${relation.$.id})`);
+                        modified = true;
+                        updateCount++;
+                        console.log(`Added label to boundary ${name} (relation ${relation.$.id})`);
+                    }
                 }
-            } else if (nodes.length > 0 && matchingRelations.length > 0) {
-                // Print debug info for many:many matches
-                console.log(`Found ${nodes.length} nodes and ${matchingRelations.length} relations for "${name}"`);
-                console.log(`Nodes: ${nodes.map(n => n.$.id).join(', ')}`);
-                console.log(`Relations: ${matchingRelations.map(r => r.$.id).join(', ')}`);
             }
         }
 
