@@ -24,15 +24,18 @@ function buildSPARQLQuery(queryString) {
 }
 
 async function queryWikidata(query) {
-    const fullUrl = `${WIKIDATA_SPARQL_URL}?query=${encodeURIComponent(query)}`;
-    const response = await fetch(fullUrl, {
+    const response = await fetch(WIKIDATA_SPARQL_URL, {
+        method: 'POST',
         headers: {
             'Accept': 'application/sparql-results+json',
-            'User-Agent': USER_AGENT
-        }
+            'User-Agent': USER_AGENT,
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: `query=${encodeURIComponent(query)}`
     });
 
     if (!response.ok) {
+        console.log(`SPARQL Query: ${query}`);
         throw new Error(`HTTP error! status: ${response.status}`);
     }
     const data = await response.json();

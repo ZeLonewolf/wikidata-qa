@@ -96,37 +96,23 @@ function findClosestBoundaryPoint(node, relation, result) {
                 for (const relation of matchingRelations) {
                     let selectedNode = null;
 
-                    if (nodes.length === 1) {
-                        selectedNode = nodes[0];
-                    } else {
-                        // Find closest node to boundary
-                        let closestNode = null;
-                        let minDistance = Infinity;
-                        let multipleWithin20Miles = false;
+                    // Find closest node to boundary
+                    let closestNode = null;
+                    let minDistance = Infinity;
 
-                        for (const node of nodes) {
-                            const { distance } = findClosestBoundaryPoint(node, relation, result);
-                            console.log(`Node ${node.$.id} is ${distance.toFixed(2)} miles from boundary of ${name}`);
-                            
-                            if (distance < minDistance) {
-                                minDistance = distance;
-                                closestNode = node;
-                            }
-                            
-                            // Check if multiple nodes are within 20 miles
-                            if (distance <= 20) {
-                                if (selectedNode) {
-                                    multipleWithin20Miles = true;
-                                    break;
-                                }
-                                selectedNode = node;
-                            }
+                    for (const node of nodes) {
+                        const { distance } = findClosestBoundaryPoint(node, relation, result);
+                        console.log(`Node ${node.$.id} is ${distance.toFixed(2)} miles from boundary of ${name}`);
+                        
+                        if (distance < minDistance) {
+                            minDistance = distance;
+                            closestNode = node;
                         }
+                    }
 
-                        // If no nodes within 20 miles or multiple within 20 miles, use the closest
-                        if (!selectedNode || multipleWithin20Miles) {
-                            selectedNode = closestNode;
-                        }
+                    // Only use the closest node if it's within 20 miles
+                    if (minDistance <= 20) {
+                        selectedNode = closestNode;
                     }
 
                     if (selectedNode) {
@@ -151,7 +137,7 @@ function findClosestBoundaryPoint(node, relation, result) {
 
                         modified = true;
                         updateCount++;
-                        console.log(`Added label to boundary ${name} (relation ${relation.$.id})`);
+                        console.log(`Added label to boundary ${name} (relation ${relation.$.id}) at distance ${minDistance.toFixed(2)} miles`);
                     }
                 }
             }
