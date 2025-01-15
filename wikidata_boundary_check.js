@@ -704,6 +704,10 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
         if(isNullOrEmpty(processedRow.wikidata)) {
             if(!isNullOrEmpty(processedRow.P402_reverse)) {
                 flags.push("P402 link found");
+                if (!recommendedTags[processedRow['@id']]) {
+                    recommendedTags[processedRow['@id']] = {};
+                }
+                recommendedTags[processedRow['@id']].wikidata = processedRow.P402_reverse;
             }
         } else {
             const wdRedirect = checkWikidataRedirect(processedRow.wikidata)
@@ -715,7 +719,7 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
             if(
                 !matchStringsIgnoringDiacritics(
                     simplifyWDNames(expandAbbreviations(processedRow.wikidata_names)),
-                    expandAbbreviations([processedRow.name, processedRow.alt_name])
+                    expandAbbreviations([processedRow.name, processedRow.alt_name, processedRow.short_name, processedRow.official_name])
                 )
             )
             {
