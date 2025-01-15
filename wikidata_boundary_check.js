@@ -745,19 +745,36 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
             }
             if (processedRow.boundary == "administrative") {
                 normalizedNames.some(normalizedName => {
+                    // Track if we found this name on any list
+                    let foundOnList = false;
+                    // Track if we found a matching border_type
+                    let matchesBorderType = false;
+                    
                     for (const [listType, borderType] of Object.entries(placeTypes)) {
                         if (censusPlaces[listType].some(place => cleanAndNormalizeString(place) === normalizedName)) {
-                            if (processedRow.border_type !== borderType) {
-                                flags.push(`${processedRow.name} is on Census Bureau ${borderType} list but border_type is not '${borderType}'`);
-                                if (!recommendedTags[processedRow['@id']]) {
-                                    recommendedTags[processedRow['@id']] = {};
-                                }
-                                recommendedTags[processedRow['@id']].border_type = borderType;
+                            foundOnList = true;
+                            if (processedRow.border_type === borderType) {
+                                matchesBorderType = true;
+                                break;
                             }
-                            return true;
                         }
                     }
-                    return false;
+
+                    // Only flag if we found it on a list but border_type doesn't match any list it's on
+                    if (foundOnList && !matchesBorderType) {
+                        flags.push(`${processedRow.name} is on Census Bureau list(s) but border_type '${processedRow.border_type}' does not match`);
+                        if (!recommendedTags[processedRow['@id']]) {
+                            recommendedTags[processedRow['@id']] = {};
+                        }
+                        // Recommend first matching type found
+                        for (const [listType, borderType] of Object.entries(placeTypes)) {
+                            if (censusPlaces[listType].some(place => cleanAndNormalizeString(place) === normalizedName)) {
+                                recommendedTags[processedRow['@id']].border_type = borderType;
+                                break;
+                            }
+                        }
+                    }
+                    return foundOnList; // Stop checking other normalized names if we found this one
                 });
             }
             if (processedRow.count_admin_centre > 0) {
@@ -834,32 +851,26 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
         )    
     );
 
-    unfoundCensusCities.forEach(city =>
-        flaggedData.push(
-            {
-                name: city,
-                flags: [`${city} (city) is missing as a boundary=administrative from OSM but is listed on the Census Bureau <a href="https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer/2024_gaz_place_${state.fipsCode}.txt">list</a> of cities`]
-            }
-        )    
-    );
+    const placeTypeMap = {
+        cities: 'city',
+        towns: 'town',
+        villages: 'village'
+    };
 
-    unfoundCensusTowns.forEach(town =>
-        flaggedData.push(
-            {
-                name: town,
-                flags: [`${town} (town) is missing as a boundary=administrative from OSM but is listed on the Census Bureau <a href="https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer/2024_gaz_place_${state.fipsCode}.txt">list</a> of towns`]
-            }
-        )    
-    );
+    const listUrls = {
+        places: `https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer/2024_gaz_place_${state.fipsCode}.txt`,
+        cousubs: `https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer/2024_gaz_cousubs_${state.fipsCode}.txt`
+    };
 
-    unfoundCensusVillages.forEach(village =>
-        flaggedData.push(
-            {
-                name: village,
-                flags: [`${village} (village) is missing as a boundary=administrative from OSM but is listed on the Census Bureau <a href="https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer/2024_gaz_place_${state.fipsCode}.txt">list</a> of villages`]
-            }
-        )    
-    );
+    for (const [placeListKey, placeType] of Object.entries(placeTypeMap)) {
+        const unfoundPlaces = eval(`unfoundCensus${placeListKey.charAt(0).toUpperCase() + placeListKey.slice(1)}`);
+        unfoundPlaces.forEach(place => {
+            flaggedData.push({
+                name: place,
+                flags: [`${place} (${placeType}) is missing as a boundary=administrative from OSM but is listed on the Census Bureau <a href="${listUrls.places}">places</a> or <a href="${listUrls.cousubs}">county subdivisions</a> list of ${placeListKey}`]
+            });
+        });
+    }
 
     const unfoundCityAndTownQIDs = unfoundCitiesAndTowns.map(city => citiesAndTownsQIDMap.get(city));
     const unfoundCityAndTownData = retrieveWikidataDataInChunks(unfoundCityAndTownQIDs);

@@ -71,49 +71,84 @@ const lsadSuffixes = {
   '57': 'CDP',
 };
 
-async function getCensusPlaces(state) {
-  const url = `https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer/2024_gaz_place_${state.fipsCode}.txt`;
+// Helper function to create empty places object
+function createEmptyPlaces() {
+  return {
+    cities: [],
+    towns: [],
+    villages: [],
+    cdps: []
+  };
+}
 
+// Helper function to fetch and parse census data
+async function fetchCensusData(url) {
   try {
     const response = await axios.get(url);
-    const rawData = response.data;
+    return response.data.split('\n')
+                      .map(line => line.split('\t'))
+                      .slice(1); // Skip header row
+  } catch (error) {
+    console.error('Error fetching data:', error);
+    return [];
+  }
+}
 
-    // Split into rows and process as tab-delimited
-    const rows = rawData.split('\n')
-                       .map(line => line.split('\t'))
-                       .slice(1); // Skip header row
-
-    // Initialize result object with all lsadTypes values
-    const places = Object.values(lsadTypes).reduce((acc, type) => {
-      acc[type] = [];
-      return acc;
-    }, {});
-
-    // Process rows and categorize by LSAD type
-    rows.forEach(row => {
-      if (!row[3] || !row[4]) return; // Skip empty/malformed rows
+async function getCensusBoundaries(state) {
+  const places = createEmptyPlaces();
+  
+  // Fetch places data
+  const placesUrl = `https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer/2024_gaz_place_${state.fipsCode}.txt`;
+  const placesRows = await fetchCensusData(placesUrl);
+  
+  if (placesRows.length) {
+    placesRows.forEach(row => {
+      if (!row[3] || !row[4]) return;
       
       const name = row[3];
       const lsadType = row[4];
 
       if (lsadTypes[lsadType]) {
         const placeType = lsadTypes[lsadType];
-        // Remove type suffix from name based on place type
         const cleanName = name.replace(new RegExp(` ${lsadSuffixes[lsadType]}$`, 'i'), '');
         places[placeType].push(cleanName);
       }
     });
-
-    return places;
-
-  } catch (error) {
-    console.error('Error fetching data:', error);
-    // Return empty arrays for all place types
-    return Object.values(lsadTypes).reduce((acc, type) => {
-      acc[type] = [];
-      return acc;
-    }, {});
   }
+
+  // Fetch county divisions data
+  const divisionsUrl = `https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer/2024_gaz_cousubs_${state.fipsCode}.txt`;
+  const divisionRows = await fetchCensusData(divisionsUrl);
+
+  if (divisionRows.length) {
+    divisionRows.forEach(row => {
+      if (!row[3] || !row[4]) return;
+      
+      const name = row[3];
+      const funcstat = row[4];
+
+      if (funcstat === 'A' || funcstat === 'F') {
+        const match = name.match(/^(.+?)\s+([A-Za-z]+)$/);
+        if (match) {
+          const placeName = match[1];
+          const lsad = match[2].toLowerCase();
+          
+          const placeTypeMap = {
+            'city': 'cities',
+            'town': 'towns', 
+            'village': 'villages',
+            'cdp': 'cdps'
+          };
+          
+          if (placeTypeMap[lsad]) {
+            places[placeTypeMap[lsad]].push(placeName);
+          }
+        }
+      }
+    });
+  }
+
+  return places;
 }
 
-module.exports = { getCensusPlaces, getStateFipsCode }
+module.exports = { getCensusBoundaries, getStateFipsCode }
