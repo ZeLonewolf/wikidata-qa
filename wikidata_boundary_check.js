@@ -747,12 +747,18 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
                 normalizedNames.some(normalizedName => {
                     // Track if we found this name on any list
                     let foundOnList = false;
-                    // Track if we found a matching border_type
+                    // Track if we found a matching border_type 
                     let matchesBorderType = false;
+                    // Track how many lists this name appears on
+                    let listCount = 0;
+                    // Store the matching border type if found on exactly one list
+                    let matchingBorderType = null;
                     
                     for (const [listType, borderType] of Object.entries(placeTypes)) {
                         if (censusPlaces[listType].some(place => cleanAndNormalizeString(place) === normalizedName)) {
                             foundOnList = true;
+                            listCount++;
+                            matchingBorderType = borderType;
                             if (processedRow.border_type === borderType) {
                                 matchesBorderType = true;
                                 break;
@@ -762,16 +768,14 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
 
                     // Only flag if we found it on a list but border_type doesn't match any list it's on
                     if (foundOnList && !matchesBorderType) {
-                        flags.push(`${processedRow.name} is on Census Bureau list(s) but border_type '${processedRow.border_type}' does not match`);
-                        if (!recommendedTags[processedRow['@id']]) {
-                            recommendedTags[processedRow['@id']] = {};
-                        }
-                        // Recommend first matching type found
-                        for (const [listType, borderType] of Object.entries(placeTypes)) {
-                            if (censusPlaces[listType].some(place => cleanAndNormalizeString(place) === normalizedName)) {
-                                recommendedTags[processedRow['@id']].border_type = borderType;
-                                break;
+                        flags.push(`${processedRow.name} is on Census Bureau list(s) but border_type [${processedRow.border_type}] does not match`);
+                        
+                        // Only recommend a tag change if found on exactly one list
+                        if (listCount === 1) {
+                            if (!recommendedTags[processedRow['@id']]) {
+                                recommendedTags[processedRow['@id']] = {};
                             }
+                            recommendedTags[processedRow['@id']].border_type = matchingBorderType;
                         }
                     }
                     return foundOnList; // Stop checking other normalized names if we found this one
