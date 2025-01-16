@@ -46,14 +46,12 @@ function generateHTML(stateData, outputDir) {
             <th colspan="2">All Boundaries</th>
         </tr>`;
 
-    // Generate a row for each state
+        // Generate a row for each state
     for (const stateAbbrev in stateData) {
         if (stateData.hasOwnProperty(stateAbbrev)) {
             const findings = stateData[stateAbbrev];
             const stateName = getStateName(stateAbbrev);
-            
-            const filenames = getOutputFilenames(stateData);
-            
+            const filenames = getOutputFilenames({ urlName: stateAbbrev });
             htmlContent += `
             <tr>
                 <td>${stateName}</td>

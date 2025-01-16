@@ -7,6 +7,7 @@ const { getStateAbbreviation } = require('./state_abbreviation.js');
 const { getCensusBoundaries } = require ("./census_bureau.js");
 const { getCitiesAndTownsInStateRelation } = require('./wikidata/wikidata_query_service.js');
 const { saveCitiesAndTownsToHTML } = require('./html_writer.js');
+const { getOutputFilenames } = require('./util-filenames.js');
 const fs = require('fs');
 const path = require('path');
 
@@ -46,17 +47,15 @@ async function processOneState(stateName) {
 async function processState(state) {
     const censusBoundaries = await getCensusBoundaries(state);
     const citiesAndTowns = await getCitiesAndTownsInStateRelation(state.osmRelationId);
-    const stateFile = `output/${state.urlName}.csv`;
-    const stateBulkFile = `output/${state.urlName}_bulk_findings.json`;
-    const stateFlaggedFile = `output/${state.urlName}_flagged.csv`;
+    const filenames = getOutputFilenames(state);
     console.log(`State: ${state.name}, OSM Relation ID: ${state.osmRelationId}`);
     await saveBoundariesWithinToCSV(state.osmRelationId);
-    await saveCitiesAndTownsToHTML(citiesAndTowns, state.name);
+    saveCitiesAndTownsToHTML(citiesAndTowns, state.name);
     state.abbrev = getStateAbbreviation(state.name);
-    const flaggedFindings = await boundaryCheck(`output/${state.osmRelationId}.csv`, stateFile, state, censusBoundaries, citiesAndTowns);    
+    const flaggedFindings = await boundaryCheck(filenames, state, censusBoundaries, citiesAndTowns);    
     console.log(`Boundary check complete for ${state.name}, OSM Relation ID: ${state.osmRelationId}`);
-    convertCsvToHtml(stateFile, state);
-    convertCsvToHtml(stateFlaggedFile, state, stateBulkFile);
+    convertCsvToHtml(filenames.outputCSV, state);
+    convertCsvToHtml(filenames.outputIssuesCSV, state, filenames.stateBulkFile);
     console.log(`HTML generation complete for ${state.name}, OSM Relation ID: ${state.osmRelationId}`);
     return flaggedFindings;
 }
