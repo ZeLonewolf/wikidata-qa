@@ -3,7 +3,9 @@ function getOutputFilenames(state) {
     return {
         inputCSV: `output/${state.osmRelationId}.csv`,
         outputCSV: `${baseFile}.csv`,
+        outputHTML: `${baseFile}.html`,
         outputIssuesCSV: `${baseFile}_flagged.csv`,
+        outputIssuesHTML: `${baseFile}_flagged.html`,
         outputP402CSV: `${baseFile}_P402_entry.csv.txt`,
         outputP402RemovalCSV: `${baseFile}_P402_removal.csv.txt`, 
         outputRecommendedTags: `${baseFile}_recommended_tags.json`,
