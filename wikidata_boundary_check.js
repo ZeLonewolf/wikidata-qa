@@ -76,21 +76,21 @@ const placeTypes = {
     villages: 'village'
 };
 
-csvHeader = [
-        { id: '@id', title: '@id' },
-        { id: 'boundary', title: 'boundary' },
-        { id: 'admin_level', title: 'admin_level' },
-        { id: 'name', title: 'name' },
-        { id: 'wikidata', title: 'wikidata' },
-        { id: 'wikidata_name', title: 'wikidata_name' },
-        { id: 'P31', title: 'P31' },
-        { id: 'P31_name', title: 'instance of' },
-        { id: 'P131', title: 'P131' },
-        { id: 'P131_name', title: 'contained in admin entity' },
-        { id: 'P402', title: 'P402' },
-        { id: 'P402_reverse', title: 'P402_reverse' },
-        { id: 'flags', title: 'flags' }
-    ];
+const csvHeader = [
+    { id: '@id', title: '@id' },
+    { id: 'boundary', title: 'boundary' },
+    { id: 'admin_level', title: 'admin_level' },
+    { id: 'name', title: 'name' },
+    { id: 'wikidata', title: 'wikidata' },
+    { id: 'wikidata_name', title: 'wikidata_name' },
+    { id: 'P31', title: 'P31' },
+    { id: 'P31_name', title: 'instance of' },
+    { id: 'P131', title: 'P131' },
+    { id: 'P131_name', title: 'contained in admin entity' },
+    { id: 'P402', title: 'P402' },
+    { id: 'P402_reverse', title: 'P402_reverse' },
+    { id: 'flags', title: 'flags' }
+];
 
 function validateTags(row, flags) {
     const boundaryType = row.boundary;
@@ -172,6 +172,9 @@ const wdOSMRelReverseLink = new Map();
 const CHUNK_SIZE = 50;
 
 function retrieveWikidataDataInChunks(qids) {
+    if (!qids || qids.length === 0) {
+        return { entities: {} };
+    }
     const chunkedQids = chunkArray(qids, CHUNK_SIZE);
     const results = chunkedQids.map(chunk => retrieveWikidataData(chunk));
     // Merge all the results into a single object
@@ -384,12 +387,12 @@ function fetchData(qid) {
     }
 };
 
-async function boundaryCheck(inputCSV, outputCSV, state, censusPlaces, citiesAndTowns) {
-
-    const filenames = getOutputFilenames(state);
+async function boundaryCheck(filenames, state, censusPlaces, citiesAndTownsData) {
+    console.log(filenames);
+    console.log(`Processing ${citiesAndTownsData.length} cities and towns and ${censusPlaces.length} census places`);
 
     const csvWriter = createObjectCsvWriter({
-        path: outputCSV,
+        path: filenames.outputCSV,
         header: csvHeader,
         fieldDelimiter: ',',
         quote: '"'
@@ -427,7 +430,7 @@ async function boundaryCheck(inputCSV, outputCSV, state, censusPlaces, citiesAnd
     }
 
     // Read the entire file into memory
-    const input = fs.readFileSync(inputCSV);
+    const input = fs.readFileSync(filenames.inputCSV);
 
     // Parse the CSV file
     const results = parse(input, {
@@ -435,7 +438,7 @@ async function boundaryCheck(inputCSV, outputCSV, state, censusPlaces, citiesAnd
         skip_empty_lines: true
     });
 
-    return await processCSV(results, writers, state, censusPlaces, citiesAndTowns);
+    return await processCSV(results, writers, state, censusPlaces, citiesAndTownsData);
 }
 
 function simplifyWDNames(names) {
@@ -466,6 +469,11 @@ function getClaimWDQIDsForLookup() {
     return Array.from(distinctQIDs);
 }
 async function processCSV(results, writers, state, censusPlaces, citiesAndTowns) {
+    if (!citiesAndTowns || !Array.isArray(citiesAndTowns)) {
+        console.error('citiesAndTowns is undefined or not an array');
+        return 0;
+    }
+
     const processedData = [];
     const flaggedData = [];
     const quickStatementsP402 = [];

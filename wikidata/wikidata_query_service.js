@@ -96,7 +96,13 @@ function getCitiesAndTownsInStateQuery(qid) {
 }
 
 async function getCitiesAndTownsInState(qid) {
-    return await queryWikidata(getCitiesAndTownsInStateQuery(qid));
+    console.log(`Fetching cities and towns for state QID: ${qid}`);
+    const results = await queryWikidata(getCitiesAndTownsInStateQuery(qid));
+    console.log(`Found ${results.length} cities and towns for state ${qid}`);
+    if (results.length === 0) {
+        console.warn(`No cities or towns found for state ${qid}`);
+    }
+    return results;
 }
 
 async function getCitiesAndTownsInStateRelation(relationId) {
