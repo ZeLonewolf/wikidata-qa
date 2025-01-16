@@ -26,7 +26,6 @@ convert relation ::=::, ::id=id(),
 );
 
 out;`;
-    console.log(query);
     try {
         const response = await axios.post(overpassUrl, qs.stringify({ data: query }), {
             headers: {

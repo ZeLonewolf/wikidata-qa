@@ -140,7 +140,7 @@ async function getCensusBoundaries(state) {
             'cdp': 'cdps'
           };
           
-          if (placeTypeMap[lsad]) {
+          if (placeTypeMap[lsad] && !places[placeTypeMap[lsad]].includes(placeName)) {
             places[placeTypeMap[lsad]].push(placeName);
           }
         }

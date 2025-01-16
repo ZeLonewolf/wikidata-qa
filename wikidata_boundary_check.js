@@ -884,16 +884,38 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
         cousubs: `https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer/2024_gaz_cousubs_${state.fipsCode}.txt`
     };
 
-    for (const [placeListKey, placeType] of Object.entries(placeTypeMap)) {
-        const unfoundPlaces = eval(`unfoundCensus${placeListKey.charAt(0).toUpperCase() + placeListKey.slice(1)}`);
-        unfoundPlaces.forEach(place => {
+    // Check for missing cities
+    if (unfoundCensusCities.length > 0) {
+        console.log(`Found ${unfoundCensusCities.length} missing cities`);
+        unfoundCensusCities.forEach(place => {
             flaggedData.push({
                 name: place,
-                flags: [`${place} (${placeType}) is missing as a boundary=administrative from OSM but is listed on the Census Bureau <a href="${listUrls.places}">places</a> or <a href="${listUrls.cousubs}">county subdivisions</a> list of ${placeListKey}`]
+                flags: [`${place} (city) is missing as a boundary=administrative from OSM but is listed on the Census Bureau <a href="${listUrls.places}">places</a> or <a href="${listUrls.cousubs}">county subdivisions</a> list of cities`]
             });
         });
     }
 
+    // Check for missing towns
+    if (unfoundCensusTowns.length > 0) {
+        console.log(`Found ${unfoundCensusTowns.length} missing towns`);
+        unfoundCensusTowns.forEach(place => {
+            flaggedData.push({
+                name: place,
+                flags: [`${place} (town) is missing as a boundary=administrative from OSM but is listed on the Census Bureau <a href="${listUrls.places}">places</a> or <a href="${listUrls.cousubs}">county subdivisions</a> list of towns`]
+            });
+        });
+    }
+
+    // Check for missing villages
+    if (unfoundCensusVillages.length > 0) {
+        console.log(`Found ${unfoundCensusVillages.length} missing villages`);
+        unfoundCensusVillages.forEach(place => {
+            flaggedData.push({
+                name: place,
+                flags: [`${place} (village) is missing as a boundary=administrative from OSM but is listed on the Census Bureau <a href="${listUrls.places}">places</a> or <a href="${listUrls.cousubs}">county subdivisions</a> list of villages`]
+            });
+        });
+    }
     const unfoundCityAndTownQIDs = unfoundCitiesAndTowns.map(city => citiesAndTownsQIDMap.get(city));
     const unfoundCityAndTownData = retrieveWikidataDataInChunks(unfoundCityAndTownQIDs);
 
