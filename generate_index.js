@@ -1,4 +1,5 @@
 const { getStateName } = require('./state_abbreviation');
+const { getOutputFilenames } = require('./util-filenames');
 const fs = require('fs');
 const path = require('path');
 
@@ -51,17 +52,16 @@ function generateHTML(stateData, outputDir) {
             const findings = stateData[stateAbbrev];
             const stateName = getStateName(stateAbbrev);
             
-            // Replace spaces with underscores for filenames
-            const stateFileName = stateName.replace(/ /g, '_');
+            const filenames = getOutputFilenames(stateData);
             
             htmlContent += `
             <tr>
                 <td>${stateName}</td>
                 <td><b>${findings.toLocaleString()}</b></td>
-                <td><a href="${stateFileName}_flagged.csv">CSV</a></td>
-                <td><a href="${stateFileName}_flagged.html">HTML</a></td>
-                <td><a href="${stateFileName}.csv">CSV</a></td>
-                <td><a href="${stateFileName}.html">HTML</a></td>
+                <td><a href="${path.basename(filenames.outputIssuesCSV)}">CSV</a></td>
+                <td><a href="${path.basename(filenames.outputIssuesCSV).replace('.csv', '.html')}">HTML</a></td>
+                <td><a href="${path.basename(filenames.outputCSV)}">CSV</a></td>
+                <td><a href="${path.basename(filenames.outputCSV).replace('.csv', '.html')}">HTML</a></td>
             </tr>`;
         }
     }

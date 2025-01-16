@@ -1,6 +1,7 @@
 const fs = require('fs');
 const Papa = require('papaparse');
 const path = require('path');
+const { getOutputFilenames } = require('./util-filenames');
 
 function applyOSMAndWikidataLinks(value) {
     let linkedValue = value;
@@ -34,6 +35,7 @@ function convertCsvToHtml(csvFilePath, state, bulkFile) {
 
     try {
         const data = fs.readFileSync(csvFilePath, 'utf8');
+        const outputFiles = getOutputFilenames(state);
 
         // Parse CSV file
         Papa.parse(data, {
@@ -51,7 +53,9 @@ function convertCsvToHtml(csvFilePath, state, bulkFile) {
                     <a href="https://github.com/ZeLonewolf/wikidata-qa">Source code on GitHub</a><br />
                     <a href="https://overpass-turbo.eu/s/1JzB">border_type Map view (overpass)</a><br />
                     <a href="https://overpass-turbo.eu/s/1FPV">admin_level Map view (overpass)</a><br />
-                    <a href="${state.urlName}_P402_entry.csv.txt">P402 Entries</a> for <a href="https://quickstatements.toolforge.org/#/batch">quickstatements</a><br />
+                    <a href="${path.basename(outputFiles.outputP402CSV)}">P402 Entries</a> for <a href="https://quickstatements.toolforge.org/#/batch">quickstatements</a><br />
+                    <a href="${path.basename(outputFiles.outputP402RemovalCSV)}">P402 Removal entries</a> for <a href="https://quickstatements.toolforge.org/#/batch">quickstatements</a><br />
+                    <a href="${path.basename(outputFiles.outputRecommendedTags)}">${state.name} recommended tags</a><br />
                     <a href="${state.urlName}_citiesAndTowns.html">${state.name} city/town list</a><br />`;
 
                 if (bulkFile) {
