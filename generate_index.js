@@ -51,15 +51,16 @@ function generateHTML(stateData, outputDir) {
         if (stateData.hasOwnProperty(stateAbbrev)) {
             const findings = stateData[stateAbbrev];
             const stateName = getStateName(stateAbbrev);
-            const filenames = getOutputFilenames({ urlName: stateAbbrev });
+            const urlName = stateName.replace(/\s/g, '_');
+            const filenames = getOutputFilenames({ urlName: urlName });
             htmlContent += `
             <tr>
                 <td>${stateName}</td>
                 <td><b>${findings.toLocaleString()}</b></td>
                 <td><a href="${path.basename(filenames.outputIssuesCSV)}">CSV</a></td>
-                <td><a href="${path.basename(filenames.outputIssuesCSV).replace('.csv', '.html')}">HTML</a></td>
+                <td><a href="${path.basename(filenames.outputIssuesHTML)}">HTML</a></td>
                 <td><a href="${path.basename(filenames.outputCSV)}">CSV</a></td>
-                <td><a href="${path.basename(filenames.outputCSV).replace('.csv', '.html')}">HTML</a></td>
+                <td><a href="${path.basename(filenames.outputHTML)}">HTML</a></td>
             </tr>`;
         }
     }
