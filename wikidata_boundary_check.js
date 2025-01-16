@@ -740,7 +740,7 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
             } else {
                 if(processedRow['@id'] != processedRow.P402) {
                     flags.push("Mismatched OSM ID");
-                    quickStatementsP402Removal.push({ qid: row.wikidata, P402: `"${processedRow['@id'].substring(1)}"` });
+                    quickStatementsP402Removal.push({ qid: row.wikidata, P402: `"${processedRow.P402.substring(1)}"` });
                 }
                 if(processedRow.wikidata != processedRow.P402_reverse) {
                     flags.push("Mismatched P402 link");                    
