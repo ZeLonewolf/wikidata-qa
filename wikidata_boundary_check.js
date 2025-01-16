@@ -481,6 +481,9 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
     const bulkFindings = [];
     const recommendedTags = {};
 
+    // Track wikidata QIDs to check for duplicates
+    const wikidataQIDMap = new Map();
+
     const qids = results
         .map(row => row.wikidata)
         .filter(qid => /^Q\d+$/.test(qid));
@@ -696,6 +699,14 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
         let processedRow;
 
         if (row.wikidata) {
+            // Check for duplicate wikidata QIDs
+            if (wikidataQIDMap.has(row.wikidata)) {
+                const existingId = wikidataQIDMap.get(row.wikidata);
+                flags.push(`Another boundary (r${existingId}) shares the same wikidata tag ${row.wikidata}`);
+            } else {
+                wikidataQIDMap.set(row.wikidata, row['@id']);
+            }
+
             const { P131, P131_name, wikidata_names, P402, P402_count, P31, P31_name } = fetchData(row.wikidata);
             if(P402_count > 1) {
                 flags.push(`Wikidata item points to ${P402_count} different OSM relations`);
