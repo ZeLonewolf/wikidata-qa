@@ -14,6 +14,7 @@ const {
     fetchOSMIDLinks 
 } = require('./wikidata/wikidata_query_service');
 const { chunkArray } = require('./util-array');
+const { getOutputFilenames } = require('./util-filenames');
 
 //QIDs that correspond to a non-admin boundary (CDP, unincorporated)
 const CDP_QID = ["Q498162", "Q56064719", "Q17343829"];
@@ -385,9 +386,7 @@ function fetchData(qid) {
 
 async function boundaryCheck(inputCSV, outputCSV, state, censusPlaces, citiesAndTowns) {
 
-    const outputIssuesCSV = outputCSV.replace('.csv', '_flagged.csv');
-    const outputP402CSV = outputCSV.replace('.csv', '_P402_entry.csv.txt');
-    const outputRecommendedTags = outputCSV.replace('.csv', '_recommended_tags.json');
+    const filenames = getOutputFilenames(state);
 
     const csvWriter = createObjectCsvWriter({
         path: outputCSV,
@@ -397,17 +396,25 @@ async function boundaryCheck(inputCSV, outputCSV, state, censusPlaces, citiesAnd
     });
 
     const csvIssuesWriter = createObjectCsvWriter({
-        path: outputIssuesCSV,
+        path: filenames.outputIssuesCSV,
         header: csvHeader,
         fieldDelimiter: ',',
         quote: '"'
     });
 
     const P402Writer = createObjectCsvWriter({
-        path: outputP402CSV,
+        path: filenames.outputP402CSV,
         header: [
             { id: 'qid', title: 'qid' },
             { id: 'P402', title: 'P402' }
+        ]
+    });
+
+    const P402RemovalWriter = createObjectCsvWriter({
+        path: filenames.outputP402RemovalCSV,
+        header: [
+            { id: 'qid', title: 'qid' },
+            { id: 'P402', title: '-P402' }
         ]
     });
 
@@ -415,7 +422,8 @@ async function boundaryCheck(inputCSV, outputCSV, state, censusPlaces, citiesAnd
         csvWriter,
         csvIssuesWriter,
         P402Writer,
-        outputRecommendedTags
+        P402RemovalWriter,
+        outputRecommendedTags: filenames.outputRecommendedTags
     }
 
     // Read the entire file into memory
@@ -461,6 +469,7 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
     const processedData = [];
     const flaggedData = [];
     const quickStatementsP402 = [];
+    const quickStatementsP402Removal = [];
     const bulkFindings = [];
     const recommendedTags = {};
 
@@ -577,12 +586,12 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
             }
         }
     }
-
     let unfoundCitiesAndTowns = [...citiesAndTownsNames];
     let rowCount = 0;
 
     // Track relation IDs with CDP/unincorporated mismatch
     let cdpMismatchRelations = [];
+
     for (const row of results) {
         const flags = [];
 
@@ -731,6 +740,7 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
             } else {
                 if(processedRow['@id'] != processedRow.P402) {
                     flags.push("Mismatched OSM ID");
+                    quickStatementsP402Removal.push({ qid: row.wikidata, P402: `"${processedRow['@id'].substring(1)}"` });
                 }
                 if(processedRow.wikidata != processedRow.P402_reverse) {
                     flags.push("Mismatched P402 link");                    
@@ -932,6 +942,10 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
     if(quickStatementsP402.length > 0) {
         await writers.P402Writer.writeRecords(quickStatementsP402)
             .then(() => console.log('The P402 CSV file was written successfully'));
+    }
+    if(quickStatementsP402Removal.length > 0) {
+        await writers.P402RemovalWriter.writeRecords(quickStatementsP402Removal)
+            .then(() => console.log('The P402 removal CSV file was written successfully'));
     }
 
     // Write bulk findings to JSON file if there are any
