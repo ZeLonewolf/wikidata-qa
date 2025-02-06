@@ -4,14 +4,19 @@ const diacriticRegex = /[\u0300-\u036f]/g;
 // Regex to normalize different types of dashes/hyphens to standard hyphen
 const dashRegex = /[\u2010-\u2015\u2212\u2043\u002D]/g;
 
-function cleanAndNormalizeString(str) {
+function cleanAndNormalizeString(str, splitDelimiter = false) {
     if (!str) return '';
     
-    return str.normalize("NFD")
-             .replace(diacriticRegex, "")
-             .replace(dashRegex, "-");
-}
+    const normalized = str.normalize("NFD")
+                         .replace(diacriticRegex, "")
+                         .replace(dashRegex, "-");
 
+    if (splitDelimiter && normalized.includes(';')) {
+        return normalized.split(';').map(s => s.trim());
+    }
+    
+    return normalized;
+}
 function matchStringsIgnoringDiacritics(arr1, arr2) {
     if (!Array.isArray(arr1) || !Array.isArray(arr2)) {
         return false;

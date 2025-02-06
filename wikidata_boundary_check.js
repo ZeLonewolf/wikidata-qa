@@ -614,28 +614,26 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
             row['name'] = row['name:en'];
             delete row['name:en'];
         }
-
         // Create array of normalized names to check
-        let normalizedNames = [cleanAndNormalizeString(row['name'])];
+        let normalizedNames = cleanAndNormalizeString(row['name'], true);
+        if (!Array.isArray(normalizedNames)) {
+            normalizedNames = [normalizedNames];
+        }
         
-        // Add short_name if present
-        if (row.short_name) {
-            normalizedNames.push(cleanAndNormalizeString(row.short_name));
-        }
+        // Helper function to add normalized names from a field
+        const addNormalizedNames = (field) => {
+            if (row[field]) {
+                const names = cleanAndNormalizeString(row[field], true);
+                if (Array.isArray(names)) {
+                    normalizedNames.push(...names);
+                } else {
+                    normalizedNames.push(names);
+                }
+            }
+        };
 
-        // Add alt_name if present
-        if (row.alt_name) {
-            normalizedNames.push(cleanAndNormalizeString(row.alt_name));
-        }
-
-        // Add old_name if present 
-        if (row.old_name) {
-            normalizedNames.push(cleanAndNormalizeString(row.old_name));
-        }
-        // Add official_name if present
-        if (row.official_name) {
-            normalizedNames.push(cleanAndNormalizeString(row.official_name));
-        }
+        // Add names from various fields
+        ['short_name', 'alt_name', 'old_name', 'official_name'].forEach(addNormalizedNames);
 
         // Special case: if official_name matches P1448, use wikidata label
         if (row.wikidata && row.official_name) {
@@ -668,29 +666,19 @@ async function processCSV(results, writers, state, censusPlaces, citiesAndTowns)
             if (index !== -1) {
                 unfoundCitiesAndTowns.splice(index, 1);
             }
-            // Check unfoundCensusCities
-            index = unfoundCensusCities.findIndex(item =>
-                normalizedNames.some(normalizedName => cleanAndNormalizeString(item) === normalizedName)
-            );
-            if (index !== -1) {
-                unfoundCensusCities.splice(index, 1);
-            }
 
-            // Check unfoundCensusTowns  
-            index = unfoundCensusTowns.findIndex(item =>
-                normalizedNames.some(normalizedName => cleanAndNormalizeString(item) === normalizedName)
-            );
-            if (index !== -1) {
-                unfoundCensusTowns.splice(index, 1);
-            }
+            // Helper function to check and remove from unfound lists
+            const checkUnfoundList = (list) => {
+                const index = list.findIndex(item =>
+                    normalizedNames.some(normalizedName => cleanAndNormalizeString(item) === normalizedName)
+                );
+                if (index !== -1) {
+                    list.splice(index, 1);
+                }
+            };
 
-            // Check unfoundCensusVillages
-            index = unfoundCensusVillages.findIndex(item =>
-                normalizedNames.some(normalizedName => cleanAndNormalizeString(item) === normalizedName)
-            );
-            if (index !== -1) {
-                unfoundCensusVillages.splice(index, 1);
-            }
+            // Check various unfound census lists
+            [unfoundCensusCities, unfoundCensusTowns, unfoundCensusVillages].forEach(checkUnfoundList);
         }
 
         //Get reverse P402 link
