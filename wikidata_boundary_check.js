@@ -153,8 +153,11 @@ function validateTags(row, flags) {
                 const wikidataValues = claims[property].map(claim => 
                     claim.mainsnak.datavalue.value.text
                 );
-                
-                if (!wikidataValues.includes(row[tag])) {
+
+                // Split the OSM value by semicolon and check if any of the values match
+                const osmValues = row[tag].split(';').map(v => v.trim());
+                const hasMatch = osmValues.some(osmValue => wikidataValues.includes(osmValue));
+                if (!hasMatch) {
                     flags.push(`${tag}=${row[tag]} does not match Wikidata ${property} value`);
                 }
             }
