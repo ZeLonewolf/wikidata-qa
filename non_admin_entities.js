@@ -3,7 +3,7 @@ function nonAdminQIDs() {
         'Q610237',   // US special-purpose district
         'Q104146790', // US electoral district
         'Q5398059',  // US Indian reservation
-        'Q35080211', // US Wildlife manag
+        'Q473972', // Protected area
         'Q15726209', // US school district
         'Q131463097', // former municipality
         'Q931483', // legal fiction
