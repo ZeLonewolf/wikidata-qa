@@ -7,6 +7,7 @@ function nonAdminQIDs() {
         'Q15726209', // US school district
         'Q131463097', // former municipality
         'Q931483', // legal fiction
+        'Q856564', // library association
     ];
 }
 
