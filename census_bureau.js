@@ -103,19 +103,19 @@ async function getCensusBoundaries(state) {
   
   if (placesRows.length) {
     placesRows.forEach(row => {
-      if (!row[3] || !row[4]) return;
+      if (!row[3] || !row[4] || !row[5]) return;
       
       const name = row[3];
       const lsadType = row[4];
+      const funcstat = row[5];
 
-      if (lsadTypes[lsadType]) {
+      if (lsadTypes[lsadType] && funcstat === 'A') {
         const placeType = lsadTypes[lsadType];
         const cleanName = name.replace(new RegExp(` ${lsadSuffixes[lsadType]}$`, 'i'), '');
         places[placeType].push(cleanName);
       }
     });
   }
-
   // Fetch county divisions data
   const divisionsUrl = `https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer/2024_gaz_cousubs_${state.fipsCode}.txt`;
   const divisionRows = await fetchCensusData(divisionsUrl);
@@ -127,7 +127,7 @@ async function getCensusBoundaries(state) {
       const name = row[3];
       const funcstat = row[4];
 
-      if (funcstat === 'A' || funcstat === 'F') {
+      if (funcstat === 'A') {
         const match = name.match(/^(.+?)\s+([A-Za-z]+)$/);
         if (match) {
           const placeName = match[1];
