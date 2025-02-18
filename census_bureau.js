@@ -109,9 +109,11 @@ async function getCensusBoundaries(state) {
       const lsadType = row[4];
       const funcstat = row[5];
 
-      if (lsadTypes[lsadType] && funcstat === 'A') {
+      if (lsadTypes[lsadType] && (funcstat === 'A' || funcstat === 'S')) {
         const placeType = lsadTypes[lsadType];
-        const cleanName = name.replace(new RegExp(` ${lsadSuffixes[lsadType]}$`, 'i'), '');
+        const cleanName = name
+          .replace(new RegExp(` ${lsadSuffixes[lsadType]}$`, 'i'), '')
+          .replace(/\s*\([^)]+\)/, ''); // Remove text in parentheses
         places[placeType].push(cleanName);
       }
     });
